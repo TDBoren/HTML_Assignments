@@ -1,0 +1,4901 @@
+app.controller('AccountManagementCtrl', AccountManagementCtrl);
+AccountManagementCtrl.$inject = ['$scope', '$http', '$location', '$window'];
+
+function AccountManagementCtrl($scope, $http, $location, $window) {
+    $scope.UserDetails = {};
+    $scope.PasswordInfo = {};
+
+    $scope.init = function (accountManagementData) {
+        $scope.AccountManagementData = accountManagementData;
+        if ($scope.AccountManagementData) {
+            $scope.UserDetails.USER_NAME = $scope.AccountManagementData.USER_NAME;
+            $scope.UserDetails.FIRST_NAME = $scope.AccountManagementData.FIRST_NAME;
+            $scope.UserDetails.MIDDLE_NAME = $scope.AccountManagementData.MIDDLE_NAME;
+            $scope.UserDetails.LAST_NAME = $scope.AccountManagementData.LAST_NAME;
+            $scope.UserDetails.EMAIL = $scope.AccountManagementData.EMAIL;
+            $scope.EditPersonalInformationFlag = $scope.AccountManagementData.EditPersonalInformationFlag;
+        }
+
+        $scope.navigateToTab();
+    }
+
+    $scope.navigateToTab = function () {
+        var tab = $location.path();
+        if (tab != '') {
+            tab = tab.replace('/', '');
+            $('#AccountManagementTab a[href="#' + tab + '"]').tab('show');
+        }
+    }
+
+    $scope.updateProfile = function () {
+        if ($scope.profile_form.$invalid) {
+            return false;
+        }
+
+        $http({
+            url: '/AccountManagement/UpdateProfile',
+            method: 'PUT',
+            data: {
+                FIRST_NAME: $scope.UserDetails.FIRST_NAME,
+                MIDDLE_NAME: $scope.UserDetails.MIDDLE_NAME,
+                LAST_NAME: $scope.UserDetails.LAST_NAME,
+                EMAIL: $scope.UserDetails.EMAIL,
+            }
+        }).then(function successCallback(response) {
+            if (response.data.error) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in updating profile.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            }
+            else {
+                $scope.showPersonalInfoUpdated = true;
+            }
+            $scope.profile_form.$setPristine();
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in updating profile.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.closePersonalInfoUpdatedAlert = function () {
+        $scope.showPersonalInfoUpdated = false;
+    }
+
+    $scope.cancelPersonalInfo = function () {
+        $scope.profile_form.$setPristine();
+        $scope.init();
+    }
+
+    $scope.$watch('profile_form.$pristine', function (n, o) {
+        if (n != o && !n) {
+            $scope.showPersonalInfoUpdated = false;
+        }
+    });
+    
+    // End personal info
+
+    //Password change
+    $scope.isPasswordValid = false;
+
+    $scope.showPIN = function () {
+        if ($scope.password_form.$invalid) {
+            return false;
+        }
+        $('#EnterPINDialog').modal({
+            backdrop: 'static'
+        });
+        $('#EnterPINDialog').modal('show');
+    }
+
+    //This is to focus on the PIN field when the modal pops up
+    $('#EnterPINDialog').on('shown.bs.modal', function () {
+        $('#EnterPINTextBox').focus();
+    })
+
+    $scope.changePassword = function () {
+        if ($scope.enter_pin_form.$invalid) {
+            return false;
+        }
+        $('#EnterPINDialog').modal('hide');
+        $http({
+            url: '/AccountManagement/ChangePassword',
+            method: 'PUT',
+            data: {
+                CURRENT_PASSWORD: $scope.PasswordInfo.OldPassword,
+                NEW_PASSWORD: $scope.PasswordInfo.NewPassword,
+                CONFIRM_PASSWORD: $scope.PasswordInfo.ConfirmPassword,
+                PIN: $scope.PasswordInfo.PIN
+            }
+        }).then(function successCallback(response) {
+            if (response.data.error) {
+                $scope.showUnsuccessfulPasswordChange = true;
+                $scope.passwordChangeMessage = response.data.message;
+            }
+            else {
+                $scope.showPasswordUpdated = true;
+                $scope.clearPasswordForm();
+                $scope.password_form.$setPristine();
+            }
+
+            $scope.PasswordInfo.PIN = null;
+            $scope.enter_pin_form.$setPristine();
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in changing password.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.closePasswordChangedAlert = function () {
+        $scope.showPasswordUpdated = false;
+    }
+
+    $scope.closeUnsuccessfulPasswordChangeAlert = function () {
+        $scope.showUnsuccessfulPasswordChange = false;
+    }
+
+    $scope.clearPasswordForm = function () {
+        $scope.PasswordInfo.OldPassword = null;
+        $scope.PasswordInfo.NewPassword = null;
+        $scope.PasswordInfo.ConfirmPassword = null;
+        $scope.PasswordInfo.PIN = null;
+
+        $scope.showUnsuccessfulPasswordChange = false;
+        $scope.passwordChangeMessage = "";
+    }
+
+    $scope.cancelChangePassword = function () {
+        $scope.password_form.$setPristine();
+        $scope.clearPasswordForm();
+    }
+
+    $scope.cancelEnterPIN = function () {
+        $scope.PasswordInfo.PIN = null;
+        $scope.enter_pin_form.$setPristine();
+        $('#EnterPINDialog').modal('hide');
+    }
+
+    $scope.$watch('password_form.$pristine', function (n, o) {
+        if (n != o && !n) {
+            $scope.showPasswordUpdated = false;
+
+            $scope.showUnsuccessfulPasswordChange = false;
+            $scope.passwordChangeMessage = "";
+        }
+    });
+
+    $scope.$watch('isPasswordValid', function (n, o) {
+        if (n != o) {
+            $scope.password_form.NewPasswordTextBox.$setValidity("notvalid", $scope.isPasswordValid);
+        }
+    });
+
+    //End password change
+
+    //PIN change
+    $scope.changePIN = function () {
+        if ($scope.pin_form.$invalid) {
+            return false;
+        }
+        $http({
+            url: '/AccountManagement/ChangePIN',
+            method: 'PUT',
+            data: {
+                CURRENT_PIN: $scope.pinInfo.currentPIN,
+                NEW_PIN: $scope.pinInfo.newPIN
+            }
+        }).then(function successCallback(response) {
+            if (!response.data.Status) {
+                $scope.showUnsuccessfulPINChange = true;
+                $scope.pinChangeMessage = response.data.Message;
+                if (response.data.Data != null && response.data.Data.IS_LOGOUT) {
+                    $window.location.href = "/";
+                }
+            }
+            else {
+                $scope.showPINUpdated = true;
+                $scope.clearPINForm();
+            }
+            $scope.pin_form.$setPristine();
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in changing PIN.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.closePINUpdatedAlert = function () {
+        $scope.showPINUpdated = false;
+    }
+
+    $scope.closeUnsuccessfulPINChangeAlert = function () {
+        $scope.showUnsuccessfulPINChange = false;
+    }
+
+    $scope.clearPINForm = function () {
+        $scope.pinInfo.currentPIN = null;
+        $scope.pinInfo.newPIN = null;
+        $scope.pinInfo.confirmPIN = null;
+
+        $scope.showUnsuccessfulPINChange = false;
+        $scope.pinChangeMessage = "";
+    }
+
+    $scope.cancelChangePIN = function () {
+        $scope.pin_form.$setPristine();
+        $scope.clearPINForm();
+    }
+
+    $scope.$watch('pin_form.$pristine', function (n, o) {
+        if (n != o && !n) {
+            $scope.showPINUpdated = false;
+
+            $scope.showUnsuccessfulPINChange = false;
+            $scope.pinChangeMessage = "";
+        }
+    });
+    //End PIN change
+}
+
+
+
+app.controller('ChangePwdCtrl', ChangePwdCtrl);
+
+function ChangePwdCtrl($scope, $http, $location) {
+
+    //Password change
+    $scope.isPasswordValid = false;
+    $scope.showUnsuccessfulPasswordChange = false;
+
+    $scope.ChangePasswordInfo = {
+        USER_NAME: "",
+        NEW_PASSWORD: "",
+        CONFIRM_PASSWORD: "",
+        PIN: "",
+        RESETPASS_VID: "",
+        PIN_REQUIRED: false
+    };
+
+    $scope.setModel = function (model) {
+        $scope.ChangePasswordInfo.USER_NAME = model.UserName;
+        $scope.ChangePasswordInfo.NEW_PASSWORD = "";
+        $scope.ChangePasswordInfo.CONFIRM_PASSWORD = "";
+        $scope.ChangePasswordInfo.PIN = "";
+        $scope.ChangePasswordInfo.RESETPASS_VID = model.RESETPASS_VID;
+        $scope.ChangePasswordInfo.PIN_REQUIRED = model.PIN_REQUIRED;
+    }
+
+    $scope.changePassword = function () {
+
+        if ($scope.password_form.$invalid) {
+            return false;
+        }
+        //$('#enter-pin').modal('hide');
+        $http({
+            url: '/Account/ChangePassword',
+            method: 'PUT',
+            data: {
+                USER_NAME: $scope.ChangePasswordInfo.USER_NAME,
+                NEW_PASSWORD: $scope.ChangePasswordInfo.NEW_PASSWORD,
+                CONFIRM_PASSWORD: $scope.ChangePasswordInfo.CONFIRM_PASSWORD,
+                PIN: $scope.ChangePasswordInfo.PIN,
+                RESETPASS_VID: $scope.ChangePasswordInfo.RESETPASS_VID
+            }
+        }).success(function (data) {
+            if (data.error) {
+                $scope.showUnsuccessfulPasswordChange = true;
+                $scope.passwordChangeMessage = data.message;
+            }
+            else {
+                $scope.showPasswordUpdated = true;
+                $scope.clearPasswordForm();
+                $scope.password_form.$setPristine();
+                setTimeout(function () { window.location = "/"; }, 500);
+            }
+
+        }).error(function (data) {
+            bootbox.alert(data);
+        });
+    }
+
+    $scope.clearPasswordForm = function () {
+        $scope.ChangePasswordInfo.USER_NAME = null;
+        $scope.ChangePasswordInfo.NEW_PASSWORD = null;
+        $scope.ChangePasswordInfo.CONFIRM_PASSWORD = null;
+        $scope.ChangePasswordInfo.PIN = null;
+        //$scope.ChangePasswordInfo.RESETPASS_VID = null;
+        //$scope.ChangePasswordInfo.PIN_REQUIRED = null;
+
+        $scope.showUnsuccessfulPasswordChange = false;
+        $scope.passwordChangeMessage = "";
+        $scope.password_form.$setPristine();
+    }
+
+    $scope.closePasswordChangedAlert = function () {
+        $scope.showPasswordUpdated = false;
+    }
+
+    $scope.closeUnsuccessfulPasswordChangeAlert = function () {
+        $scope.showUnsuccessfulPasswordChange = false;
+    }
+
+    $scope.$watch('password_form.$pristine', function (n, o) {
+        if (n != o && !n) {
+            $scope.showPasswordUpdated = false;
+
+            $scope.showUnsuccessfulPasswordChange = false;
+            $scope.passwordChangeMessage = "";
+        }
+    });
+
+    $scope.$watch('isPasswordValid', function (n, o) {
+        if (n != o) {
+            $scope.password_form.NewPasswordTextBox.$setValidity("notvalid", $scope.isPasswordValid);
+        }
+    });
+
+}
+app.controller('ContactUsCtrl', ContactUsCtrl);
+ContactUsCtrl.$inject = ['$scope', '$http', 'DataService'];
+
+function ContactUsCtrl($scope, $http, DataService) {
+    $scope.OriginalContactUsInfo = {};
+    $scope.contactUsDetails = {};
+    $scope.contactUsDetails.contactSubject = null;
+    $scope.subjectList = null;
+
+
+    $scope.showEmail = DataService.email;
+    $scope.showPhone = DataService.phone;
+    $scope.phoneBody = DataService.phoneBody;
+
+    $scope.init = function () {
+        var contactUsData = {
+            FULL_NAME: DataService.FULL_NAME,
+            EMAIL: DataService.EMAIL,
+            PRIMARY_PHONE: DataService.PRIMARY_PHONE
+        }
+
+        $scope.ContactUsData = contactUsData;
+        
+            $scope.OriginalContactUsInfo.FULL_NAME = $scope.ContactUsData.FULL_NAME;
+            $scope.OriginalContactUsInfo.EMAIL = $scope.ContactUsData.EMAIL;
+            $scope.OriginalContactUsInfo.PRIMARY_PHONE = $scope.ContactUsData.PRIMARY_PHONE;
+        
+
+        $scope.populateSubjectList();
+        $scope.resetToOriginal();
+    }
+
+    
+
+    $scope.resetToOriginal = function () {
+        $scope.contactUsDetails.contactSubject = null;
+        $scope.contactUsDetails.DESCRIPTION = "";
+        $scope.contactUsDetails.CONTACT_TYPE = 1;
+
+        $scope.contactUsDetails.FULL_NAME = $scope.OriginalContactUsInfo.FULL_NAME;
+        $scope.contactUsDetails.EMAIL = $scope.OriginalContactUsInfo.EMAIL;
+        document.getElementById("PhoneTextBox").value = $scope.OriginalContactUsInfo.PRIMARY_PHONE;
+        $scope.contactUsDetails.PRIMARY_PHONE = document.getElementById("PhoneTextBox").value;
+    }
+
+    $scope.populateSubjectList = function () {
+        $scope.subjectList = DataService.subjectList;
+
+        //$scope.loadingSubjectDropDown = true;
+
+        /*
+        $http({
+            method: 'GET',
+            url: '/ContactUs/GetContactSubjects'
+        }).then(function successCallback(response) {
+            $scope.subjectList = response.data;
+            $scope.loadingSubjectDropDown = false;
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting contact subjects.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });*/
+    }
+
+    $scope.init();
+
+    $scope.submit = function () {
+        if ($scope.contact_us_form.$invalid) {
+            return false;
+        }
+        $scope.showEligResultLoading = true;
+        $http({
+            url: "/ContactUs/Submit/",
+            method: "POST",
+            data: {
+                FULL_NAME: $scope.contactUsDetails.FULL_NAME,
+                CONTACT_SUBJECT_ID: $scope.contactUsDetails.contactSubject.CONTACT_SUBJECT_ID,
+                CONTACT_SUBJECT: $scope.contactUsDetails.contactSubject.SUBJECT,
+                CONTACT_EMAIL: $scope.contactUsDetails.contactSubject.EMAIL,
+                DESCRIPTION: $scope.contactUsDetails.DESCRIPTION,
+                CONTACT_TYPE: $scope.contactUsDetails.CONTACT_TYPE,
+                EMAIL: $scope.contactUsDetails.EMAIL,
+                PRIMARY_PHONE: $scope.contactUsDetails.PRIMARY_PHONE
+            }
+        }).then(function successCallback(response) {
+            $scope.showFormSubmitted = true;
+            $scope.contact_us_form.$setPristine();
+            $scope.resetToOriginal();
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in submitting contact us.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+            $scope.contact_us_form.$setPristine();
+        });
+    }
+
+}
+
+
+
+app.controller('EntityManagementCtrl', EntityManagementCtrl);
+EntityManagementCtrl.$inject = ['$scope', '$http', '$filter', '$q', '$timeout', 'WBXVerificationCountService', '$uibModal', '$window', 'DataService'];
+
+function EntityManagementCtrl($scope, $http, $filter, $q, $timeout, WBXVerificationCountService, $uibModal, $window, DataService) {
+
+
+    /*
+    
+    window._eftAccountTypes = @Html.Raw(ViewData["eftAccountTypes"]);
+    window._agreement = "@Html.Raw(ViewData["agreement"])";
+    window._eft = @Html.Raw(ViewData["eft"]);
+    window._allowEft = @Html.Raw(ViewData["allowEft"]);
+    window._rules = @Html.Raw(ViewData["rules"]);
+    */
+
+    if (DataService.attestationDetails == null) {
+        $scope.Attestation = {
+            ATTESTATION_ID: null,
+            CONTENT: ""
+        };
+    } else {
+        $scope.Attestation = DataService.attestationDetails;
+    }
+
+    $scope.eft = angular.copy(DataService.eft);
+    $scope.eftAccountTypes = DataService.eftAccountTypes;
+    $scope.allowEft = DataService.allowEft;
+
+    
+
+    $scope.Sessions = {};
+    $scope.SelectedLocationVerificationStatuses = [];
+    $scope.SelectedProviderVerificationStatuses = [];
+    $scope.GenderList = [
+        {
+            VALUE: 'M',
+            DESCRIPTION: "Male"
+        },
+        {
+            VALUE: 'F',
+            DESCRIPTION: "Female"
+        }
+    ];
+
+    $scope.VerificationCount = 0;
+
+    $scope.$watch(function () { return WBXVerificationCountService.getVerificationCount(); }, function (newVal) {
+        $scope.VerificationCount = newVal;
+    });
+
+    //Entity Info
+    $scope.EntityInfoPayee = null;
+    $scope.EntityInfoLocation = null;
+    $scope.EntityInfoProvider = null;
+    $scope.EntityInfoFacility = null;
+    $scope.EntityInfoClient = null;
+    $scope.EntityInfoGroup = null;
+    $scope.PayeeEdit = {};
+    $scope.ShowEntityInfoEditSubmittedMsg = false;
+    $scope.IsEntityInfoVerificationMsg = false;
+    $scope.ShowEntityInfoEmailedMsg = false;
+    $scope.IsEntityInfoPanelCollapsed = true;
+
+    //Locations
+    $scope.LocationList = null;
+    $scope.LocationEdit = {};
+    $scope.ShowLocationEditSubmittedMsg = false;
+    $scope.IsLocationVerificationMsg = false;
+    $scope.ShowLocationsLoading = false;
+    $scope.LanguageList = [];
+
+    //Providers
+    $scope.ProviderList = null;
+    $scope.ProviderEdit = {};
+    $scope.ShowProviderEditSubmittedMsg = false;
+    $scope.IsProviderVerificationMsg = false;
+    $scope.ShowProvidersLoading = false;
+    $scope.SpecialtyList = [];
+
+    //Groups
+    $scope.Groups = null;
+    $scope.ShowGroupsLoading = true;
+
+    //Facilities
+    $scope.Facilities = null;
+    $scope.FacilityEdit = {};
+    $scope.ShowFacilityEditedMsg = false;
+    $scope.ShowFacilitiesLoading = false;
+
+    //Office contacts
+    $scope.OfficeContacts = [];
+    $scope.OfficeContactEdit = {};
+    $scope.ShowOfficeContactAddedMsg = false;
+    $scope.ShowOfficeContactEditedMsg = false;
+    $scope.ShowOfficeContactEditedMsg = false;
+    $scope.ShowOfficeContactsLoading = false;
+    $scope.IsOfficeContactEdit = false;
+    $scope.OfficeContactControl = {};
+
+    //Self Verification
+    $scope.StatusesToLoad = [
+        {
+            PORTAL_PROCESSING_TYPE: 7,
+            TITLE: 'Verification Status',
+            ColorList: {
+                Green: [1],
+                Gold: [2],
+                Red: [3, 4, 5, 6]
+            }
+        }
+    ];
+
+    $scope.Icons = {
+        0: 'circle-o',
+        1: '', //Use wbx-verification-shield-icon
+        2: '', //Use wbx-verification-shield-icon
+        3: 'hourglass-half',
+        4: 'ban',
+        5: 'hourglass-end',
+        6: 'user-times'
+    }
+
+    $scope.AssociatedProviderSort = {
+        sortColumn: 'VERIFICATION_STATUS',
+        reverse: true
+    };
+
+    $scope.FacilitySort = {
+        sortColumn: 'NAME',
+        reverse: false
+    };
+
+    $scope.OfficeContactSort = {
+        sortColumn: 'DESCRIPTION',
+        reverse: false
+    };
+
+    $scope.GroupSort = {
+        sortColumn: 'NAME',
+        reverse: false
+    };
+
+
+    $scope.init = function (domainSourceId) {
+        $scope.domainSourceId = domainSourceId;
+
+        $scope.getPortalLineOfBusinessSessions();
+
+        //Show first tab since we don't know which tab will be first due to security.
+        $('#EntityManagementTab a:first').tab('show');
+    }
+
+    $scope.getPortalLineOfBusinessSessions = function () {
+        $scope.LoadingSessionInfo = true;
+        $http({
+            method: 'GET',
+            url: '/WebSession/GetPortalLineOfBusinessSessions'
+        }).then(function successCallback(response) {
+            if (response.data != null) {
+                $scope.Sessions.IsVision = response.data.IS_VISION;
+                $scope.Sessions.IsPayee = response.data.IS_PAYEE;
+                $scope.Sessions.IsLocation = response.data.IS_LOCATION;
+                $scope.Sessions.IsProvider = response.data.IS_PROVIDER;
+                $scope.Sessions.IsClient = response.data.IS_CLIENT;
+                $scope.Sessions.IsGroup = response.data.IS_GROUP;
+                $scope.Sessions.IsFacility = response.data.IS_FACILITY;
+                $scope.Sessions.IsFacilitySubType = response.data.IS_FACILITY_SUBTYPE;
+                $scope.Sessions.IsVerificationOn = response.data.IS_VERFICATION_ON;
+                $scope.LoadingSessionInfo = false;
+
+                $scope.getEntityInfo();
+
+                if ($scope.Sessions.IsFacilitySubType) {
+                    if ($scope.Sessions.IsPayee) {
+                        $scope.getFacilities();
+                    }
+                }
+                else {
+                    if ($scope.Sessions.IsPayee || $scope.Sessions.IsProvider || $scope.Sessions.IsLocation) {
+                        $scope.setSelect2_Location();
+                        $scope.populateLocationDropdownList();
+                    }
+
+                    if ($scope.Sessions.IsPayee || $scope.Sessions.IsProvider) {
+                        $scope.getLocations();
+                    }
+
+                    if ($scope.Sessions.IsPayee || $scope.Sessions.IsLocation) {
+                        $scope.getProviders();
+                    }
+
+                    if ($scope.Sessions.IsClient) {
+                        $scope.getGroups();
+                    }
+                }
+
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in retrieving portal sessions.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.getLanguages = function () {
+        var deferred = $q.defer();
+        if ($scope.LanguageList.length == 0) {
+            $scope.LoadingLanguagesDropDown = true;
+            $http({
+                method: 'GET',
+                url: '/PortalDropList/GetLanguages'
+            }).then(function successCallback(response) {
+                $scope.LoadingLanguagesDropDown = false;
+
+                //Add groupers
+                var startMostPopularGroup = { DESCRIPTION: 'Most Popular', group: true };
+                var endMostPopularGroup = { group: false };
+                var startLessPopularGroup = { DESCRIPTION: 'Less Popular', group: true };
+                var endLessPopularGroup = { group: false };
+                response.data.splice(response.data.length, 0, endLessPopularGroup);
+                response.data.splice(10, 0, startLessPopularGroup);
+                response.data.splice(10, 0, endMostPopularGroup);
+                response.data.splice(0, 0, startMostPopularGroup);
+
+                $scope.LanguageList = response.data;
+
+                deferred.resolve(true);
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in retrieving language list.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+                deferred.reject(false);
+                $scope.LoadingLanguagesDropDown = false;
+            });
+        }
+        else {
+            deferred.resolve(true);
+        }
+        return deferred.promise;
+    }
+
+    $scope.getEntityInfo = function () {
+        if ($scope.Sessions.IsPayee) {
+            $http({
+                method: 'GET',
+                url: '/EntityManagement/GetEntityInfoPayee'
+            }).then(function successCallback(response) {
+                $scope.EntityInfoPayee = response.data;
+                $scope.showEntityPanel();
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in retrieving payee info.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            });
+        }
+        else if ($scope.Sessions.IsLocation) {
+            $http({
+                method: 'GET',
+                url: '/EntityManagement/GetEntityInfoLocation'
+            }).then(function successCallback(response) {
+                $scope.EntityInfoLocation = response.data;
+                $scope.showEntityPanel();
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in retrieving location info.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            });
+        }
+        else if ($scope.Sessions.IsProvider) {
+            $http({
+                method: 'GET',
+                url: '/EntityManagement/GetEntityInfoProvider'
+            }).then(function successCallback(response) {
+                $scope.EntityInfoProvider = response.data;
+                $scope.showEntityPanel();
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in retrieving provider info.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            });
+        }
+        else if ($scope.Sessions.IsFacility) {
+            $http({
+                method: 'GET',
+                url: '/EntityManagement/GetEntityInfoFacility'
+            }).then(function successCallback(response) {
+                $scope.EntityInfoFacility = response.data;
+                $scope.showEntityPanel();
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in retrieving facility info.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            });
+        }
+        else if ($scope.Sessions.IsClient) {
+            $http({
+                method: 'GET',
+                url: '/EntityManagement/GetEntityInfoClient'
+            }).then(function successCallback(response) {
+                $scope.EntityInfoClient = response.data;
+                $scope.showEntityPanel();
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in retrieving client info.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            });
+        }
+        else if ($scope.Sessions.IsGroup) {
+            $http({
+                method: 'GET',
+                url: '/EntityManagement/GetEntityInfoGroup'
+            }).then(function successCallback(response) {
+                $scope.EntityInfoGroup = response.data;
+                $scope.showEntityPanel();
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in retrieving group info.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            });
+        }
+    }
+
+    //Payee methods
+    $scope.showEditPayee = function (payeeInfo) {
+        $scope.edit_payee_form.$setPristine();
+
+        $scope.PayeeEditDialogControl.populateStateList();
+        $scope.PayeeEdit = angular.copy(payeeInfo);
+
+        $('#EditPayeeDialog').modal({
+            backdrop: 'static'
+        });
+        $('#EditPayeeDialog').modal('show');
+    }
+
+
+
+
+
+    $scope.closeEditPayeeDialog = function () {
+        //If it's not a valid email, it has to be explicitly cleared because 
+        // angular doesn't bind until the value is valid.
+        //In this case, if it's not a valid email, angular doesn't bind it and 
+        // it's not automatically cleared.
+        if ($scope.edit_payee_form.EmailTextBox.$invalid) {
+            $('#EmailTextBox')[0].value = "";
+        }
+        $('#EditPayeeDialog').modal('hide');
+    }
+
+    $scope.saveEditPayeeDialog = function (updatedPayee) {
+        if ($scope.edit_payee_form.$invalid) {
+            return false;
+        }
+        if (!$scope.Sessions.IsVision) {
+            //If not vision, allow update he database directly
+            $http({
+                url: "/EntityManagement/UpdatePayee",
+                method: "PUT",
+                data: {
+                    NAME: updatedPayee.NAME,
+                    ADDRESS1: updatedPayee.ADDRESS1,
+                    ADDRESS2: updatedPayee.ADDRESS2,
+                    CITY: updatedPayee.CITY,
+                    STATE: updatedPayee.STATE,
+                    ZIP: updatedPayee.ZIP,
+                    ZIP_4: updatedPayee.ZIP_4,
+                    VOICE_PHONE: updatedPayee.VOICE_PHONE,
+                    FAX_PHONE: updatedPayee.FAX_PHONE,
+                    EMAIL: updatedPayee.EMAIL,
+                    NPI: updatedPayee.NPI
+                }
+            }).then(function successCallback(response) {
+                if (!response.data.Status) {
+                    console.error(response.data.Message);
+                    console.error(response);
+                    if ($scope.ExceptionDialogControl != null) {
+                        $scope.ExceptionDialogControl.showDialog("Error in updating payee information.");
+                    }
+                    else {
+                        bootbox.alert(response.data.Message);
+                    }
+                }
+                else {
+                    $scope.EntityInfoPayee = angular.copy(updatedPayee);
+                    $scope.ShowEntityInfoEditSubmittedMsg = true;
+                    $scope.closeEditPayeeDialog();
+                }
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in updating payee information.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            });
+        }
+        else {
+            //If vision, just send email
+            $http({
+                url: "/EntityManagement/EmailPayee",
+                method: "PUT",
+                data: {
+                    oldPayeeInfo: $scope.EntityInfoPayee,
+                    newPayeeInfo: updatedPayee
+                }
+            }).then(function successCallback(response) {
+                if (!response.data.Status) {
+                    console.error(response.data.Message);
+                    console.error(response);
+                    if ($scope.ExceptionDialogControl != null) {
+                        $scope.ExceptionDialogControl.showDialog("Error in accepting changes on the payee information.");
+                    }
+                    else {
+                        bootbox.alert(response.data.Message);
+                    }
+                }
+                else {
+                    $scope.ShowEntityInfoEmailedMsg = true;
+                    $scope.closeEditPayeeDialog();
+                }
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in accepting changes on the payee information.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            });
+        }
+    }
+
+    $scope.closeEntityInfoEditSubmittedAlert = function () {
+        $scope.ShowEntityInfoEditSubmittedMsg = false;
+        $scope.ShowEntityInfoEmailedMsg = false;
+        $scope.IsEntityInfoVerificationMsg = false;
+    }
+    //end Payee methods
+
+    //Location methods
+    $scope.getLocations = function () {
+        $scope.ShowLocationsLoading = true;
+        $scope.LocationSort = {
+            sortColumn: $scope.Sessions.IsVerificationOn ? 'VERIFICATION_STATUS' : 'NAME',
+            reverse: $scope.Sessions.IsVerificationOn ? true : false
+        };
+        $scope.LocationList = [];
+        $http({
+            method: 'GET',
+            url: '/EntityManagement/GetLocations'
+        }).then(function successCallback(response) {
+            $scope.LocationList = response.data.LocationList;
+            $scope.LocationNeededAttentionCount = response.data.LocationCount;
+
+            $scope.setSearchableTextForLocation($scope.LocationList);
+
+            $scope.LocationsResultReturned = true;
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting location list.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+            $scope.ShowLocationsLoading = false;
+        });
+    }
+
+    $scope.showLocationEntityDialog = function (location, isVerify) {
+        $scope.IsEditFromEntity = true;
+        $scope.showLocationVerificationDialog(location.LOCATION_ID, isVerify);
+    }
+
+    $scope.showLocationDialog = function (location, isVerify) {
+        $scope.IsEditFromEntity = false;
+        $scope.showLocationVerificationDialog(location.LOCATION_ID, isVerify);
+    }
+
+
+    //$scope.setEditLocationInfo = function (locationInfo) {
+    //    $scope.LocationEdit.LOCATION_ID = locationInfo.LOCATION_ID;
+    //    $scope.LocationEdit.NAME = locationInfo.NAME;
+    //    $scope.LocationEdit.ADDRESS1 = locationInfo.ADDRESS1;
+    //    $scope.LocationEdit.ADDRESS2 = locationInfo.ADDRESS2;
+    //    $scope.LocationEdit.CITY = locationInfo.CITY;
+    //    $scope.LocationEdit.STATE = locationInfo.STATE;
+    //    $scope.LocationEdit.ZIP = locationInfo.ZIP;
+    //    $scope.LocationEdit.ZIP_4 = locationInfo.ZIP_4;
+    //    $scope.LocationEdit.VOICE_PHONE = locationInfo.VOICE_PHONE;
+    //    $scope.LocationEdit.FAX_PHONE = locationInfo.FAX_PHONE;
+    //    $scope.LocationEdit.EMAIL = locationInfo.EMAIL;
+    //    $scope.LocationEdit.NPI = locationInfo.NPI;
+
+    //    $scope.LocationEdit.HANDICAP_ACCESS_FLAG = locationInfo.HANDICAP_ACCESS_FLAG;
+    //    $scope.LocationEdit.SPECIAL_NEEDS_PATIENTS_FLAG = locationInfo.SPECIAL_NEEDS_PATIENTS_FLAG;
+
+    //    $scope.LocationEdit.HOURS = {};
+    //    if (locationInfo.LOCATION_HOURS != null && locationInfo.LOCATION_HOURS.length > 0) {
+    //        angular.forEach(locationInfo.LOCATION_HOURS, function (locationHour, value) {
+    //            $scope.LocationEdit.HOURS[locationHour.DAY] = {
+    //                HR_START1: locationHour.HR_START1,
+    //                HR_END1: locationHour.HR_END1,
+    //                HR_START2: locationHour.HR_START2,
+    //                HR_END2: locationHour.HR_END2
+    //            }
+    //        });
+    //    }
+    //}
+
+    $scope.getLocationInfoToEdit = function (locationId, isVerify) {
+        $scope.LoadingLocationInfoToEdit = true;
+        $http({
+            method: 'GET',
+            url: '/EntityManagement/GetLocationInfoToEdit',
+            params: {
+                LOCATION_ID: locationId,
+                IS_VERIFY: isVerify
+            }
+        }).then(function successCallback(response) {
+            $scope.LoadingLocationInfoToEdit = false;
+            if (response.data != null) {
+                //General Info & Associated Providers
+                $scope.LocationEdit = response.data;
+
+                //Languages
+                var promise = $scope.getLanguages();
+                promise.then(function () {
+                    //Set the SELECTED flag to true for the multi select to have these values selected
+                    if ($scope.LanguageList != null) {
+                        $scope.LocationLanguageList = angular.copy($scope.LanguageList);
+                        angular.forEach($scope.LocationLanguageList, function (language) {
+                            var foundLanguage = _.findWhere($scope.LocationEdit.Languages, { LANGUAGE_ID: language.LANGUAGE_ID });
+                            if (foundLanguage != null) {
+                                language.SELECTED = true;
+                            }
+                            else {
+                                language.SELECTED = false;
+                            }
+                        });
+                    }
+                }, function (data) {
+                    // bad, do nothing
+                });
+
+                //Hours
+                $scope.LocationEdit.HOURS = {
+                    "MON": { IS_CLOSED: true },
+                    "TUE": { IS_CLOSED: true },
+                    "WED": { IS_CLOSED: true },
+                    "THU": { IS_CLOSED: true },
+                    "FRI": { IS_CLOSED: true },
+                    "SAT": { IS_CLOSED: true },
+                    "SUN": { IS_CLOSED: true },
+                };
+
+                if ($scope.LocationEdit.Hours != null && $scope.LocationEdit.Hours.length > 0) {
+                    angular.forEach($scope.LocationEdit.Hours, function (locationHour) {
+                        $scope.LocationEdit.HOURS[locationHour.DAY] = {
+                            HR_START1: locationHour.HR_START1,
+                            HR_END1: locationHour.HR_END1,
+                            HR_START2: locationHour.HR_START2,
+                            HR_END2: locationHour.HR_END2,
+                            IS_CLOSED: false
+                        }
+                    });
+                }
+
+                //Associated Providers (If it's update only, this will be set to null and won't be processed)
+                if ($scope.LocationEdit.AssociatedProviders != null) {
+                    $scope.LocationEdit.NewAssociatedProviders = [];
+                    angular.forEach($scope.LocationEdit.AssociatedProviders, function (associatedProvider) {
+                        var providerInfo = _.findWhere($scope.ProviderList, { PROVIDER_ID: associatedProvider.PROVIDER_ID });
+                        if (providerInfo != null) {
+                            providerInfo.FULL_NAME = providerInfo.FIRST_NAME + " ";
+                            if (providerInfo.MIDDLE_NAME != null && providerInfo.MIDDLE_NAME != "") {
+                                providerInfo.FULL_NAME += providerInfo.MIDDLE_NAME + " ";
+                            }
+                            providerInfo.FULL_NAME += providerInfo.LAST_NAME + " ";
+                            providerInfo.ACTIVE_FLAG = associatedProvider.ACTIVE_FLAG;
+                            $scope.LocationEdit.NewAssociatedProviders.push(providerInfo);
+                        }
+                    });
+                }
+
+                if (isVerify) {
+                    $scope.checkIfContactInfoIsNeeded();
+                }
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in loading location info to edit.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+            $scope.LoadingLocationInfoToEdit = false;
+        });
+    }
+
+    //$scope.saveEditLocationDialog = function (updatedLocation) {
+    //    if ($scope.edit_location_form.$invalid) {
+    //        return false;
+    //    }
+    //    if (!$scope.Sessions.IsVision) {
+    //        //If not vision, allow update he database directly
+    //        $http({
+    //            url: "/EntityManagement/UpdateLocation",
+    //            method: "PUT",
+    //            data: {
+    //                LOCATION_ID: updatedLocation.LOCATION_ID,
+    //                NAME: updatedLocation.NAME,
+    //                ADDRESS1: updatedLocation.ADDRESS1,
+    //                ADDRESS2: updatedLocation.ADDRESS2,
+    //                CITY: updatedLocation.CITY,
+    //                STATE: updatedLocation.STATE,
+    //                ZIP: updatedLocation.ZIP,
+    //                ZIP_4: updatedLocation.ZIP_4,
+    //                VOICE_PHONE: updatedLocation.VOICE_PHONE,
+    //                FAX_PHONE: updatedLocation.FAX_PHONE,
+    //                EMAIL: updatedLocation.EMAIL,
+    //                NPI: updatedLocation.NPI,
+    //                LANGUAGES: updatedLocation.LANGUAGES,
+    //                HANDICAP_ACCESS_FLAG: updatedLocation.HANDICAP_ACCESS_FLAG,
+    //                SPECIAL_NEEDS_PATIENTS_FLAG: updatedLocation.SPECIAL_NEEDS_PATIENTS_FLAG,
+    //            }
+    //        }).success(function (data) {
+    //            if (!data.Status) {
+    //                $scope.ExceptionDialogControl.showDialog("Error in updating location information.");
+    //            }
+    //            else {
+    //                if ($scope.Locations != null) {
+    //                    var location = _.findWhere($scope.Locations, { LOCATION_ID: updatedLocation.LOCATION_ID });
+    //                    if (location != null) {
+    //                        location.NAME = updatedLocation.NAME;
+    //                        location.ADDRESS1 = updatedLocation.ADDRESS1;
+    //                        location.ADDRESS2 = updatedLocation.ADDRESS2;
+    //                        location.CITY = updatedLocation.CITY;
+    //                        location.STATE = updatedLocation.STATE;
+    //                        location.ZIP = updatedLocation.ZIP;
+    //                        location.ZIP_4 = updatedLocation.ZIP_4;
+    //                        location.VOICE_PHONE = updatedLocation.VOICE_PHONE;
+    //                        location.FAX_PHONE = updatedLocation.FAX_PHONE;
+    //                        location.EMAIL = updatedLocation.EMAIL;
+    //                        location.NPI = updatedLocation.NPI;
+    //                        location.LANGUAGES = updatedLocation.LANGUAGES;
+    //                        location.HANDICAP_ACCESS_FLAG = updatedLocation.HANDICAP_ACCESS_FLAG;
+    //                        location.SPECIAL_NEEDS_PATIENTS_FLAG = updatedLocation.SPECIAL_NEEDS_PATIENTS_FLAG;
+    //                        $scope.setSearchableTextForLocation([location]);
+    //                    }
+
+    //                    $scope.ShowLocationEditedMsg = true;
+    //                    $scope.closeEditLocationDialog();
+    //                }
+    //                else {
+    //                    //Updating location entity info
+    //                    $scope.EntityInfoLocation = angular.copy(updatedLocation);
+    //                    $scope.ShowEntityInfoEditedMsg = true;
+    //                    $scope.closeEditLocationDialog();
+    //                }
+
+    //            }
+    //        }).error(function (data, status, headers, config) {
+    //            $scope.ExceptionDialogControl.showDialog("Error in updating location information.");
+    //        });
+    //    }
+    //    else {
+    //        //If vision, just send email
+
+    //        //Grab old location
+    //        var oldLocation = {};
+    //        if ($scope.Locations != null) {
+    //            angular.forEach($scope.Locations, function (location, value) {
+    //                if (location.LOCATION_ID == updatedLocation.LOCATION_ID) {
+    //                    oldLocation.LOCATION_ID = location.LOCATION_ID;
+    //                    oldLocation.NAME = location.NAME;
+    //                    oldLocation.ADDRESS1 = location.ADDRESS1;
+    //                    oldLocation.ADDRESS2 = location.ADDRESS2;
+    //                    oldLocation.CITY = location.CITY;
+    //                    oldLocation.STATE = location.STATE;
+    //                    oldLocation.ZIP = location.ZIP;
+    //                    oldLocation.ZIP_4 = location.ZIP_4;
+    //                    oldLocation.VOICE_PHONE = location.VOICE_PHONE;
+    //                    oldLocation.FAX_PHONE = location.FAX_PHONE;
+    //                    oldLocation.EMAIL = location.EMAIL;
+    //                    oldLocation.NPI = location.NPI;
+    //                    oldLocation.LANGUAGES = location.LANGUAGES;
+    //                    oldLocation.HANDICAP_ACCESS_FLAG = location.HANDICAP_ACCESS_FLAG;
+    //                    oldLocation.SPECIAL_NEEDS_PATIENTS_FLAG = location.SPECIAL_NEEDS_PATIENTS_FLAG;
+    //                    oldLocation.LOCATION_HOURS = location.LOCATION_HOURS;
+    //                }
+    //            });
+    //        }
+    //        else {
+    //            oldLocation.LOCATION_ID = $scope.EntityInfoLocation.LOCATION_ID;
+    //            oldLocation.NAME = $scope.EntityInfoLocation.NAME;
+    //            oldLocation.ADDRESS1 = $scope.EntityInfoLocation.ADDRESS1;
+    //            oldLocation.ADDRESS2 = $scope.EntityInfoLocation.ADDRESS2;
+    //            oldLocation.CITY = $scope.EntityInfoLocation.CITY;
+    //            oldLocation.STATE = $scope.EntityInfoLocation.STATE;
+    //            oldLocation.ZIP = $scope.EntityInfoLocation.ZIP;
+    //            oldLocation.ZIP_4 = $scope.EntityInfoLocation.ZIP_4;
+    //            oldLocation.VOICE_PHONE = $scope.EntityInfoLocation.VOICE_PHONE;
+    //            oldLocation.FAX_PHONE = $scope.EntityInfoLocation.FAX_PHONE;
+    //            oldLocation.EMAIL = $scope.EntityInfoLocation.EMAIL;
+    //            oldLocation.NPI = $scope.EntityInfoLocation.NPI;
+    //            oldLocation.LANGUAGES = $scope.EntityInfoLocation.LANGUAGES;
+    //            oldLocation.HANDICAP_ACCESS_FLAG = $scope.EntityInfoLocation.HANDICAP_ACCESS_FLAG;
+    //            oldLocation.SPECIAL_NEEDS_PATIENTS_FLAG = $scope.EntityInfoLocation.SPECIAL_NEEDS_PATIENTS_FLAG;
+    //            oldLocation.LOCATION_HOURS = $scope.EntityInfoLocation.LOCATION_HOURS;
+    //        }
+
+
+    //        $http({
+    //            url: "/EntityManagement/EmailLocation",
+    //            method: "PUT",
+    //            data: {
+    //                oldLocationInfo: oldLocation,
+    //                newLocationInfo: updatedLocation
+    //            }
+    //        }).success(function (data) {
+    //            if (!data.Status) {
+    //                $scope.ExceptionDialogControl.showDialog("Error in accepting changes on location information.");
+    //            }
+    //            else {
+    //                if ($scope.Locations != null) {
+    //                    $scope.ShowLocationMailedMsg = true;
+    //                    $scope.closeEditLocationDialog();
+    //                }
+    //                else {
+    //                    $scope.ShowEntityInfoEmailedMsg = true;
+    //                    $scope.closeEditLocationDialog();
+    //                }
+    //            }
+    //        }).error(function (data, status, headers, config) {
+    //            $scope.ExceptionDialogControl.showDialog("Error in accepting changes on location information.");
+    //        });
+    //    }
+
+    //}
+
+    $scope.closeLocationEditSubmittedAlert = function () {
+        $scope.ShowLocationEditSubmittedMsg = false;
+        $scope.IsLocationVerificationMsg = false;
+    }
+
+    $scope.setSearchableTextForLocation = function (locations) {
+        angular.forEach(locations, function (location, value) {
+            //For Address sorting & filter
+            location.ADDRESS = location.ADDRESS1 + " " + location.ADDRESS2;
+        });
+    }
+
+    $scope.sortLocation = function (columnName) {
+        if ($scope.LocationSort.sortColumn != columnName)
+            $scope.LocationSort.reverse = false;
+        else
+            $scope.LocationSort.reverse = !$scope.LocationSort.reverse;
+
+        $scope.LocationSort.sortColumn = columnName;
+    }
+
+    $scope.filterLocationsByVerificationStatus = function (rowObject) {
+        if ($scope.SelectedLocationVerificationStatuses.length > 0) {
+            return _.findWhere($scope.SelectedLocationVerificationStatuses, { PORTAL_STATUS: rowObject.VERIFICATION_STATUS }) != null;
+        }
+        else {
+            return true;
+        }
+    }
+
+    $scope.locationClosedCheckboxOnChange = function (day) {
+        if ($scope.LocationEdit.HOURS[day].IS_CLOSED) {
+            $scope.LocationEdit.HOURS[day].HR_START1 = null;
+            $scope.LocationEdit.HOURS[day].HR_END1 = null;
+            $scope.LocationEdit.HOURS[day].HR_START2 = null;
+            $scope.LocationEdit.HOURS[day].HR_END2 = null;
+        }
+    }
+
+
+
+
+    //end Location methods
+
+    //Provider methods
+    $scope.getProviders = function () {
+        $scope.ShowProvidersLoading = true;
+        $scope.ProviderSort = {
+            sortColumn: $scope.Sessions.IsVerificationOn ? 'VERIFICATION_STATUS' : 'LAST_NAME',
+            reverse: $scope.Sessions.IsVerificationOn ? true : false
+        };
+        $scope.ProviderList = [];
+        $http({
+            method: 'GET',
+            url: '/EntityManagement/GetProviders'
+        }).then(function successCallback(response) {
+            $scope.ProviderList = response.data.ProviderList;
+            $scope.ProviderNeededAttentionCount = response.data.ProviderCount;
+
+            //Since provider list has columns that maybe null (middle name and npi), we need to explicitly set these fields with empty string to not break the filter
+            angular.forEach($scope.ProviderList, function (provider) {
+                if (provider.MIDDLE_NAME == null) {
+                    provider.MIDDLE_NAME = "";
+                }
+                if (provider.NPI == null) {
+                    provider.NPI = "";
+                }
+            });
+
+            $scope.ProvidersResultReturned = true;
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting provider list.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+            $scope.ShowProvidersLoading = false;
+        });
+    }
+
+    $scope.getSpecialties = function () {
+        var deferred = $q.defer();
+        if ($scope.SpecialtyList.length == 0) {
+            $scope.LoadingSpecialtiesDropDown = true;
+            $http({
+                method: 'GET',
+                url: '/DropList/GetSpecialties'
+            }).then(function successCallback(response) {
+                $scope.LoadingSpecialtiesDropDown = false;
+                $scope.SpecialtyList = response.data;
+
+                deferred.resolve(true);
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in retrieving specialty list.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+                $scope.LoadingSpecialtiesDropDown = false;
+                deferred.reject(false);
+            });
+        }
+        else {
+            deferred.resolve(true);
+        }
+        return deferred.promise;
+    }
+
+    $scope.showProviderEntityDialog = function (provider, isVerify) {
+        $scope.IsEditFromEntity = true;
+        $scope.showProviderVerificationDialog(provider.PROVIDER_ID, isVerify);
+    }
+
+    $scope.showProviderDialog = function (provider, isVerify) {
+        $scope.IsEditFromEntity = false;
+        $scope.showProviderVerificationDialog(provider.PROVIDER_ID, isVerify);
+    }
+
+    $scope.getProviderInfoToEdit = function (providerId, isVerify) {
+        $scope.LoadingProviderInfoToEdit = true;
+        $http({
+            method: 'GET',
+            url: '/EntityManagement/GetProviderInfoToEdit',
+            params: {
+                PROVIDER_ID: providerId
+            }
+        }).then(function successCallback(response) {
+            $scope.LoadingProviderInfoToEdit = false;
+            if (response.data != null) {
+                //General Info & Associated Providers
+                $scope.ProviderEdit = response.data;
+
+                //Set Gender
+                $scope.ProviderEdit.Info.Gender = _.findWhere($scope.GenderList, { VALUE: $scope.ProviderEdit.Info.GENDER });
+
+                //Languages
+                var promise = $scope.getLanguages();
+                promise.then(function () {
+                    //Set the SELECTED flag to true for the multi select to have these values selected
+                    if ($scope.LanguageList != null) {
+                        $scope.ProviderLanguageList = angular.copy($scope.LanguageList);
+                        angular.forEach($scope.ProviderLanguageList, function (language) {
+                            var foundLanguage = _.findWhere($scope.ProviderEdit.Languages, { LANGUAGE_ID: language.LANGUAGE_ID });
+                            if (foundLanguage != null) {
+                                language.SELECTED = true;
+                            }
+                            else {
+                                language.SELECTED = false;
+                            }
+                        });
+                    }
+                }, function (data) {
+                    // bad, do nothing
+                });
+
+                //Specialties
+                var promise = $scope.getSpecialties();
+                promise.then(function () {
+                    //Set the SELECTED flag to true for the multi select to have these values selected
+                    if ($scope.SpecialtyList.length > 0) {
+                        $scope.ProviderSpecialtyList = angular.copy($scope.SpecialtyList);
+                        angular.forEach($scope.ProviderSpecialtyList, function (specialty) {
+                            var foundSpecialty = _.findWhere($scope.ProviderEdit.Specialties, { SPECIALTY_ID: specialty.SPECIALTY_ID });
+                            if (foundSpecialty != null) {
+                                specialty.SELECTED = true;
+                            }
+                            else {
+                                specialty.SELECTED = false;
+                            }
+                        });
+                    }
+                }, function (data) {
+                    // bad, do nothing
+                });
+
+                //License Numbers
+                $scope.ProviderEdit.LICENSE_NUMBERS = "";
+                angular.forEach($scope.ProviderEdit.LicenseNumbers, function (licenseNumber) {
+                    if ($scope.ProviderEdit.LICENSE_NUMBERS != "") {
+                        $scope.ProviderEdit.LICENSE_NUMBERS += ", ";
+                    }
+                    $scope.ProviderEdit.LICENSE_NUMBERS += licenseNumber.IDENTIFICATION_NUMBER + "(" + licenseNumber.STATE + ")";
+                });
+
+                //Board Certifications
+                $scope.ProviderEdit.BOARD_CERTIFICATIONS = "";
+                angular.forEach($scope.ProviderEdit.BoardCertifications, function (boardCertification) {
+                    if ($scope.ProviderEdit.BOARD_CERTIFICATIONS != "") {
+                        $scope.ProviderEdit.BOARD_CERTIFICATIONS += ", ";
+                    }
+                    $scope.ProviderEdit.BOARD_CERTIFICATIONS += boardCertification.BOARD_NAME;
+                });
+
+                //Set the flags to false if it's null for verification process
+                if (isVerify) {
+                    if ($scope.ProviderEdit.Info.PROVIDER_NETWORK_PARTICIPATION_FLAG == null) {
+                        $scope.ProviderEdit.Info.PROVIDER_NETWORK_PARTICIPATION_FLAG = false;
+                    }
+                    if ($scope.ProviderEdit.Info.PROVIDER_STATE_LICENSE_FLAG == null) {
+                        $scope.ProviderEdit.Info.PROVIDER_STATE_LICENSE_FLAG = false;
+                    }
+                    if ($scope.ProviderEdit.Info.PROVIDER_ACCEPTING_NEW_PATIENT_FLAG == null) {
+                        $scope.ProviderEdit.Info.PROVIDER_ACCEPTING_NEW_PATIENT_FLAG = false;
+                    }
+                    if ($scope.ProviderEdit.Info.PROVIDER_BOARD_CERTIFICATION_FLAG == null) {
+                        $scope.ProviderEdit.Info.PROVIDER_BOARD_CERTIFICATION_FLAG = false;
+                    }
+                }
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in loading location info to edit.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+            $scope.LoadingProviderInfoToEdit = false;
+        });
+    }
+
+    //$scope.saveEditProviderDialog = function (updatedProvider) {
+    //    if ($scope.edit_provider_form.$invalid) {
+    //        return false;
+    //    }
+    //    if (!$scope.Sessions.IsVision) {
+    //        $http({
+    //            url: "/EntityManagement/UpdateProvider",
+    //            method: "PUT",
+    //            data: {
+    //                PROVIDER_ID: updatedProvider.PROVIDER_ID,
+    //                FIRST_NAME: updatedProvider.FIRST_NAME,
+    //                MIDDLE_NAME: updatedProvider.MIDDLE_NAME,
+    //                LAST_NAME: updatedProvider.LAST_NAME,
+    //                HOME_PHONE: updatedProvider.HOME_PHONE,
+    //                CELL_PHONE: updatedProvider.CELL_PHONE,
+    //                EMAIL: updatedProvider.EMAIL,
+    //                NPI: updatedProvider.NPI,
+    //                SPECIALTIES: updatedProvider.SPECIALTIES
+    //            }
+    //        }).success(function (data) {
+    //            if (!data.Status) {
+    //                $scope.ExceptionDialogControl.showDialog("Error in updating provider information.");
+    //            }
+    //            else {
+    //                if ($scope.Providers != null) {
+    //                    var provider = _.findWhere($scope.Providers, { PROVIDER_ID: updatedProvider.PROVIDER_ID });
+    //                    if (provider != null) {
+    //                        provider.FIRST_NAME = updatedProvider.FIRST_NAME;
+    //                        provider.MIDDLE_NAME = updatedProvider.MIDDLE_NAME;
+    //                        provider.LAST_NAME = updatedProvider.LAST_NAME;
+    //                        provider.HOME_PHONE = updatedProvider.HOME_PHONE;
+    //                        provider.CELL_PHONE = updatedProvider.CELL_PHONE;
+    //                        provider.EMAIL = updatedProvider.EMAIL;
+    //                        provider.NPI = updatedProvider.NPI;
+    //                        provider.SPECIALTIES = updatedProvider.SPECIALTIES;
+    //                        $scope.setSearchableTextForProvider([provider]);
+    //                    }
+    //                    $scope.ShowProviderEditedMsg = true;
+    //                    $('#EditProviderDialog').modal('hide');
+    //                }
+    //                else {
+    //                    //Updating provider entity info
+    //                    $scope.EntityInfoProvider = angular.copy(updatedProvider);
+    //                    $scope.ShowEntityInfoEditedMsg = true;
+    //                    $scope.closeEditProviderDialog();
+    //                }
+    //            }
+    //        }).error(function (data, status, headers, config) {
+    //            $scope.ExceptionDialogControl.showDialog("Error in updating provider information.");
+    //        });
+    //    }
+    //    else {
+    //        //If vision, just send email
+
+    //        //Grab old provider
+    //        var oldProvider = {};
+    //        if ($scope.Providers != null) {
+    //            angular.forEach($scope.Providers, function (provider, value) {
+    //                if (provider.PROVIDER_ID == updatedProvider.PROVIDER_ID) {
+    //                    oldProvider.PROVIDER_ID = provider.PROVIDER_ID;
+    //                    oldProvider.FIRST_NAME = provider.FIRST_NAME;
+    //                    oldProvider.MIDDLE_NAME = provider.MIDDLE_NAME;
+    //                    oldProvider.LAST_NAME = provider.LAST_NAME;
+    //                    oldProvider.HOME_PHONE = provider.HOME_PHONE;
+    //                    oldProvider.CELL_PHONE = provider.CELL_PHONE;
+    //                    oldProvider.EMAIL = provider.EMAIL;
+    //                    oldProvider.NPI = provider.NPI;
+    //                    oldProvider.SPECIALTIES = provider.SPECIALTIES;
+    //                }
+    //            });
+    //        }
+    //        else {
+    //            oldProvider.PROVIDER_ID = $scope.EntityInfoProvider.PROVIDER_ID;
+    //            oldProvider.FIRST_NAME = $scope.EntityInfoProvider.FIRST_NAME;
+    //            oldProvider.MIDDLE_NAME = $scope.EntityInfoProvider.MIDDLE_NAME;
+    //            oldProvider.LAST_NAME = $scope.EntityInfoProvider.LAST_NAME;
+    //            oldProvider.HOME_PHONE = $scope.EntityInfoProvider.HOME_PHONE;
+    //            oldProvider.CELL_PHONE = $scope.EntityInfoProvider.CELL_PHONE;
+    //            oldProvider.EMAIL = $scope.EntityInfoProvider.EMAIL;
+    //            oldProvider.NPI = $scope.EntityInfoProvider.NPI;
+    //            oldProvider.SPECIALTIES = $scope.EntityInfoProvider.SPECIALTIES;
+    //        }
+
+
+    //        $http({
+    //            url: "/EntityManagement/EmailProvider",
+    //            method: "PUT",
+    //            data: {
+    //                oldProviderInfo: oldProvider,
+    //                newProviderInfo: updatedProvider
+    //            }
+    //        }).success(function (data) {
+    //            if (!data.Status) {
+    //                $scope.ExceptionDialogControl.showDialog("Error in accepting changes on provider information.");
+    //            }
+    //            else {
+    //                if ($scope.Providers != null) {
+    //                    $scope.ShowProviderMailedMsg = true;
+    //                    $scope.closeEditProviderDialog();
+    //                }
+    //                else {
+    //                    $scope.ShowEntityInfoEmailedMsg = true;
+    //                    $scope.closeEditProviderDialog();
+    //                }
+    //            }
+    //        }).error(function (data, status, headers, config) {
+    //            $scope.ExceptionDialogControl.showDialog("Error in accepting changes on provider information.");
+    //        });
+    //    }
+    //}
+
+    $scope.closeProviderEditSubmittedAlert = function () {
+        $scope.ShowProviderEditSubmittedMsg = false;
+        $scope.IsProviderVerificationMsg = false;
+    }
+
+    $scope.sortProvider = function (columnName) {
+        if ($scope.ProviderSort.sortColumn != columnName)
+            $scope.ProviderSort.reverse = false;
+        else
+            $scope.ProviderSort.reverse = !$scope.ProviderSort.reverse;
+
+        $scope.ProviderSort.sortColumn = columnName;
+    }
+
+    $scope.sortAssociatedProvider = function (columnName) {
+        if ($scope.AssociatedProviderSort.sortColumn != columnName)
+            $scope.AssociatedProviderSort.reverse = false;
+        else
+            $scope.AssociatedProviderSort.reverse = !$scope.AssociatedProviderSort.reverse;
+
+        $scope.AssociatedProviderSort.sortColumn = columnName;
+    }
+
+    $scope.filterProvidersByVerificationStatus = function (rowObject) {
+        if ($scope.SelectedProviderVerificationStatuses.length > 0) {
+            return _.findWhere($scope.SelectedProviderVerificationStatuses, { PORTAL_STATUS: rowObject.VERIFICATION_STATUS }) != null;
+        }
+        else {
+            return true;
+        }
+    }
+
+    $scope.updateProviderInfo = function () {
+        if ($scope.ProviderEdit.Info.USE_PROVIDER_INFO) {
+            $scope.ProviderEdit.Info.OTHER_CHANGES_CONTACT_NAME = $scope.ProviderEdit.Info.FIRST_NAME + " " + $scope.ProviderEdit.Info.LAST_NAME;
+            $scope.ProviderEdit.Info.OTHER_CHANGES_CONTACT_PHONE = $scope.ProviderEdit.Info.HOME_PHONE;
+        }
+        else {
+            $scope.ProviderEdit.Info.OTHER_CHANGES_CONTACT_NAME = null;
+            $scope.ProviderEdit.Info.OTHER_CHANGES_CONTACT_PHONE = null;
+        }
+    }
+
+    $scope.$watch('[ProviderEdit.Info.FIRST_NAME, ProviderEdit.Info.LAST_NAME]', function (n, o) {
+        if ($scope.ProviderEdit != null && $scope.ProviderEdit.Info != null && $scope.ProviderEdit.Info.USE_PROVIDER_INFO) {
+            $scope.ProviderEdit.Info.OTHER_CHANGES_CONTACT_NAME = $scope.ProviderEdit.Info.FIRST_NAME != null ? $scope.ProviderEdit.Info.FIRST_NAME : "" + " " + $scope.ProviderEdit.Info.LAST_NAME != null ? $scope.ProviderEdit.Info.LAST_NAME : "";
+        }
+    }, true);
+
+    $scope.$watch('ProviderEdit.Info.HOME_PHONE', function (n, o) {
+        if ($scope.ProviderEdit != null && $scope.ProviderEdit.Info != null && $scope.ProviderEdit.Info.USE_PROVIDER_INFO) {
+            $scope.ProviderEdit.Info.OTHER_CHANGES_CONTACT_PHONE = $scope.ProviderEdit.Info.HOME_PHONE != null ? $scope.ProviderEdit.Info.HOME_PHONE : "";
+        }
+    });
+
+    //end Provider methods
+
+    //Verification Methods
+    $scope.showLocationVerificationDialog = function (locationId, isVerify) {
+        $scope.LocationEditDialogControl.populateStateList();
+        $scope.getLocationInfoToEdit(locationId, isVerify);
+
+        $scope.LocationLanguageList = [];
+        $scope.LocationVerificationStep = 1;
+        $scope.LocationVerificationComingFromStep = null;
+        $scope.ProviderVerification = false;
+        $scope.IsLocationVerificationOnForEdit = isVerify;
+
+        //timeout is used so that the form will be set to pristine after the language field is updated (dirty is set)
+        $timeout(function () {
+            $scope.verification_location_step1_form.$setPristine();
+
+            $('#VerificationDialog').modal({
+                backdrop: 'static'
+            });
+            $('#VerificationDialog').modal('show');
+        });
+    }
+
+    $scope.showProviderVerificationDialog = function (providerId, isVerify) {
+        $scope.LocationVerificationStep = null;
+        $scope.LocationVerificationComingFromStep = null;
+        $scope.ProviderVerification = true;
+
+        $scope.IsProviderVerificationOnForEdit = isVerify;
+
+        $scope.setupProviderDialog(providerId, isVerify);
+
+        //timeout is used so that the form will be set to pristine after the language field is updated (dirty is set)
+        $timeout(function () {
+            $scope.verification_provider_form.$setPristine();
+            $('#VerificationDialog').modal({
+                backdrop: 'static'
+            });
+            $('#VerificationDialog').modal('show');
+        });
+    }
+
+    $scope.gotoLocationVerificationStep2 = function () {
+        if ($scope.verification_location_step1_form.$invalid) {
+            return false;
+        }
+
+        $scope.verification_location_step2_form.$setPristine();
+
+        $scope.LocationVerificationStep = 2;
+        $scope.LocationVerificationComingFromStep = 1;
+
+        //Reset the sorting
+        $scope.AssociatedProviderSort = {
+            sortColumn: 'VERIFICATION_STATUS',
+            reverse: true
+        };
+
+        //Set the flag to default to true of it's null.
+        if ($scope.LocationEdit.Info.LOCATION_MISSING_PROVIDERS_FLAG == null) {
+            $scope.LocationEdit.Info.LOCATION_MISSING_PROVIDERS_FLAG = false;
+        }
+    }
+
+    $scope.backToLocationVerificationStep1 = function () {
+        $scope.LocationVerificationStep = 1;
+        $scope.verification_location_step1_form.$setPristine();
+    }
+
+    $scope.gotoLocationVerificationStep3 = function () {
+        if ($scope.verification_location_step2_form.$invalid) {
+            return false;
+        }
+        
+        $scope.verification_location_step3_form.$setPristine();
+
+        $scope.LocationVerificationStep = 3;
+        $scope.LocationEdit.AGREE = false;
+    }
+
+    $scope.backToLocationVerificationStep2 = function () {
+        $scope.LocationVerificationStep = 2;
+        $scope.LocationVerificationComingFromStep = 3;
+
+        $scope.ProviderVerification = false;
+        $scope.verification_location_step2_form.$setPristine();
+    }
+
+    $scope.finishLocationVerification = function (isVerify) {
+        if ((!isVerify && $scope.verification_location_step1_form.$invalid) ||
+            (isVerify && $scope.verification_location_step3_form.$invalid)) {
+            return false;
+        }
+        $scope.ShowSavingLocation = true;
+        //Setup new hours
+        $scope.LocationEdit.NewHours = [];
+        $scope.addNewHour("MON");
+        $scope.addNewHour("TUE");
+        $scope.addNewHour("WED");
+        $scope.addNewHour("THU");
+        $scope.addNewHour("FRI");
+        $scope.addNewHour("SAT");
+        $scope.addNewHour("SUN");
+
+        $http({
+            method: 'PUT',
+            url: '/EntityManagement/SaveLocationInfo',
+            data: {
+                Info: $scope.LocationEdit.Info,
+                Languages: $scope.LocationEdit.NewLanguages,
+                Hours: $scope.LocationEdit.NewHours,
+                AssociatedProviders: $scope.LocationEdit.NewAssociatedProviders,
+                UPDATE_ONLY_FLAG: !isVerify,
+                ATTESTATION_ID: $scope.Attestation != null ? $scope.Attestation.ATTESTATION_ID : null
+            }
+        }).then(function successCallback(response) {
+            if (response.data.Status) {
+                //Show banner message
+                if ($scope.IsEditFromEntity) {
+                    $scope.closeEntityInfoEditSubmittedAlert();
+                    $scope.ShowEntityInfoEditSubmittedMsg = true;
+                    $scope.IsEntityInfoVerificationMsg = isVerify;
+
+                    $scope.updateUIVerificationStatus($scope.EntityInfoLocation, isVerify);
+                }
+                else {
+                    $scope.closeLocationEditSubmittedAlert();
+                    $scope.ShowLocationEditSubmittedMsg = true;
+                    $scope.IsLocationVerificationMsg = isVerify;
+
+                    //Update Location status to pending
+                    var edittedLocation = _.findWhere($scope.LocationList, { LOCATION_ID: $scope.LocationEdit.Info.LOCATION_ID });
+                    if (edittedLocation != null) {
+                        $scope.updateUIVerificationStatus(edittedLocation, isVerify, true, true);
+                    }
+                }
+
+                $scope.closeVerificationDialog();
+                $scope.ShowSavingLocation = false;
+            }
+            else {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in saving location info.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+                $scope.closeVerificationDialog();
+                $scope.ShowSavingLocation = false;
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in saving location info.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+            $scope.closeVerificationDialog();
+            $scope.ShowSavingLocation = false;
+        });
+
+    }
+
+    $scope.addNewHour = function (day) {
+        if ($scope.LocationEdit.HOURS != null && $scope.LocationEdit.HOURS[day].HR_START1 != null) {
+            $scope.LocationEdit.NewHours.push({
+                DAY: day,
+                HR_START1: $scope.LocationEdit.HOURS[day].HR_START1,
+                HR_END1: $scope.LocationEdit.HOURS[day].HR_END1,
+                HR_START2: $scope.LocationEdit.HOURS[day].HR_START2,
+                HR_END2: $scope.LocationEdit.HOURS[day].HR_END2
+            });
+        }
+    }
+
+    $scope.gotoProviderVerification = function (provider, isVerify) {
+        $scope.verification_provider_form.$setPristine();
+        
+        $scope.IsProviderVerificationOnForEdit = isVerify;
+
+        $scope.setupProviderDialog(provider.PROVIDER_ID, isVerify);
+
+        $scope.LocationVerificationStep = null;
+        $scope.LocationVerificationComingFromStep = 2;
+        $scope.ProviderVerification = true;
+    }
+
+    $scope.finishProviderVerification = function (isVerify) {
+        if ($scope.verification_provider_form.$invalid) {
+            return false;
+        }
+
+        //Grab the value from the dropdown model
+        $scope.ProviderEdit.Info.GENDER = $scope.ProviderEdit.Info.Gender.VALUE;
+
+        $scope.ShowSavingProvider = true;
+        $http({
+            method: 'PUT',
+            url: '/EntityManagement/SaveProviderInfo',
+            data: {
+                Info: $scope.ProviderEdit.Info,
+                Languages: $scope.ProviderEdit.NewLanguages,
+                Specialties: $scope.ProviderEdit.NewSpecialties,
+                UPDATE_ONLY_FLAG: !isVerify,
+                ATTESTATION_ID: $scope.Attestation != null ? $scope.Attestation.ATTESTATION_ID : null
+            }
+        }).then(function successCallback(response) {
+            if (response.data.Status) {
+                //Update Provider (from Providers tab) status to pending
+                var edittedProvider = null;
+
+                //If it's not a valid email, it has to be explicitly cleared because 
+                // angular doesn't bind until the value is valid.
+                //In this case, if it's not a valid email, angular doesn't bind it and 
+                // it's not automatically cleared.
+                if ($scope.verification_provider_form.EmailTextBox.$invalid) {
+                    $('#EmailTextBox')[0].value = "";
+                }
+
+                if ($scope.LocationVerificationComingFromStep != null) {
+                    //Update Provider (from associated providers list) status to pending
+                    edittedProvider = _.findWhere($scope.LocationEdit.NewAssociatedProviders, { PROVIDER_ID: $scope.ProviderEdit.Info.PROVIDER_ID });
+                    if (edittedProvider != null) {
+                        $scope.updateUIVerificationStatus(edittedProvider, isVerify, true, false);
+                    }
+
+                    //This means the Provider verification is coming from location verification. When finish, go back there.
+                    $scope.backToLocationVerificationStep2();
+                    $scope.ShowSavingProvider = false;
+                }
+                else {
+                    //This means the Provider verification is coming from Provider's grid. When finish, close the dialog.
+
+                    //Show banner message
+                    if ($scope.IsEditFromEntity) {
+                        $scope.closeEntityInfoEditSubmittedAlert();
+                        $scope.ShowEntityInfoEditSubmittedMsg = true;
+                        $scope.IsEntityInfoVerificationMsg = isVerify;
+
+                        $scope.updateUIVerificationStatus($scope.EntityInfoProvider, isVerify);
+                    }
+                    else {
+                        $scope.closeProviderEditSubmittedAlert();
+                        $scope.ShowProviderEditSubmittedMsg = true;
+                        $scope.IsProviderVerificationMsg = isVerify;
+
+                        //Update Provider (from Providers tab) status to pending
+                        edittedProvider = _.findWhere($scope.ProviderList, { PROVIDER_ID: $scope.ProviderEdit.Info.PROVIDER_ID });
+                        if (edittedProvider != null) {
+                            $scope.updateUIVerificationStatus(edittedProvider, isVerify, true, false);
+                        }
+                    }
+                    $scope.closeVerificationDialog();
+                    $scope.ShowSavingProvider = false;
+                }
+            }
+            else {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in saving provider info.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+                $scope.closeVerificationDialog();
+                $scope.ShowSavingProvider = false;
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in saving provider info.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+            $scope.closeVerificationDialog();
+            $scope.ShowSavingProvider = false;
+        });
+    }
+
+    $scope.setupProviderDialog = function (providerId, isVerify) {
+        if (isVerify) {
+            $scope.ProviderEdit.AGREE = false;
+            //$scope.getAttestation();
+        }
+
+        $scope.ProviderSpecialtyList = [];
+        $scope.ProviderLanguageList = [];
+        $scope.getProviderInfoToEdit(providerId, isVerify);
+    }
+
+    $scope.closeProviderVerificationDialog = function () {
+        if ($scope.LocationVerificationComingFromStep != null) {
+            //This means the Provider verification is coming from location verification. When finish, go back there.
+            $scope.backToLocationVerificationStep2();
+        }
+        else {
+            //This means the Provider verification is coming from Provider's grid. When finish, close the dialog.
+
+            //If it's not a valid email, it has to be explicitly cleared because 
+            // angular doesn't bind until the value is valid.
+            //In this case, if it's not a valid email, angular doesn't bind it and 
+            // it's not automatically cleared.
+            if ($scope.verification_provider_form.EmailTextBox.$invalid) {
+                $('#EmailTextBox')[0].value = "";
+            }
+
+            $scope.closeVerificationDialog();
+        }
+    }
+
+    $scope.closeVerificationDialog = function () {
+        $('#VerificationDialog').modal('hide');
+    }
+
+    $('#VerificationDialog').on('shown.bs.modal', function (e) {
+        $scope.IsModalShown = true;
+    })
+
+    $('#VerificationDialog').on('hidden.bs.modal', function (e) {
+        $scope.IsModalShown = false;
+    })
+
+    $scope.checkIfContactInfoIsNeeded = function () {
+        var isContactInfoRequired = false;
+        angular.forEach($scope.LocationEdit.NewAssociatedProviders, function (associatedProvider) {
+            if (!associatedProvider.ACTIVE_FLAG) {
+                isContactInfoRequired = true;
+            }
+        });
+
+        $scope.ContactInfoRequired = $scope.LocationEdit.Info.LOCATION_MISSING_PROVIDERS_FLAG || isContactInfoRequired;
+
+        if (!$scope.ContactInfoRequired) {
+            $scope.LocationEdit.Info.OTHER_CHANGES_CONTACT_NAME = null;
+            $scope.LocationEdit.Info.OTHER_CHANGES_CONTACT_PHONE = null;
+            $scope.LocationEdit.Info.OTHER_CHANGES_NOTES = null;
+        }
+    }
+
+
+
+    $scope.showDenialNotes = function (verificationId) {
+        $scope.LoadingDenialInfo = true;
+        console.log(name);
+        $http({
+            method: 'GET',
+            url: '/EntityManagement/GetDenialInfo',
+            params: {
+                VERIFICATION_ID: verificationId
+            }
+        }).then(function successCallback(response) {
+            if (response.data != null) {
+                $scope.DenialInfo = {
+                    REASON: response.data.DESCRIPTION,
+                    NOTES: response.data.VERIFICATION_DENIAL_NOTES
+                };
+            }
+            $scope.LoadingDenialInfo = false;
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in retrieving verification denial information.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+            $scope.LoadingDenialInfo = false;
+        });
+
+        console.log('#DenialNotesDialog');
+        $('#DenialNotesDialog').modal({
+            backdrop: 'static'
+        });
+        $('#DenialNotesDialog').modal('show');
+
+    }
+
+    $scope.closeDenialNotesDialog = function () {
+        $('#DenialNotes' + name + 'Dialog').modal('hide');
+    }
+
+
+
+    //end Verification methods
+
+    //Facility methods
+    $scope.getFacilities = function () {
+        $scope.ShowFacilitiesLoading = true;
+        $scope.Facilities = [];
+        $http({
+            method: 'GET',
+            url: '/EntityManagement/GetFacilities'
+        }).then(function successCallback(response) {
+            $scope.Facilities = response.data;
+            $scope.ShowFacilitiesLoading = false;
+            $scope.setSearchableTextForFacility($scope.Facilities);
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting facility list.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.showEditFacility = function (facilityInfo) {
+        $scope.edit_facility_form.$setPristine();
+
+        $scope.FacilityEditDialogControl.populateStateList();
+        $scope.FacilityEdit = angular.copy(facilityInfo);
+
+        $('#EditFacilityDialog').modal({
+            backdrop: 'static'
+        });
+        $('#EditFacilityDialog').modal('show');
+    }
+
+    $scope.closeEditFacilityDialog = function () {
+        $('#EditFacilityDialog').modal('hide');
+    }
+
+    $scope.saveEditFacilityDialog = function (updatedFacility) {
+        if ($scope.edit_facility_form.$invalid) {
+            return false;
+        }
+        $http({
+            url: "/EntityManagement/UpdateFacility",
+            method: "PUT",
+            data: {
+                FACILITY_ID: updatedFacility.FACILITY_ID,
+                NAME: updatedFacility.NAME,
+                ADDRESS1: updatedFacility.ADDRESS1,
+                ADDRESS2: updatedFacility.ADDRESS2,
+                CITY: updatedFacility.CITY,
+                STATE: updatedFacility.STATE,
+                ZIP: updatedFacility.ZIP,
+                ZIP_4: updatedFacility.ZIP_4,
+                VOICE_PHONE: updatedFacility.VOICE_PHONE,
+                NPI: updatedFacility.NPI
+            }
+        }).then(function successCallback(response) {
+            if (!response.data.Status) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in updating facility information.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            }
+            else {
+                if ($scope.Facilities != null) {
+                    var facility = _.findWhere($scope.Facilities, { FACILITY_ID: updatedFacility.FACILITY_ID });
+                    if (facility != null) {
+                        facility.NAME = updatedFacility.NAME;
+                        facility.ADDRESS1 = updatedFacility.ADDRESS1;
+                        facility.ADDRESS2 = updatedFacility.ADDRESS2;
+                        facility.CITY = updatedFacility.CITY;
+                        facility.STATE = updatedFacility.STATE;
+                        facility.ZIP = updatedFacility.ZIP;
+                        facility.ZIP_4 = updatedFacility.ZIP_4;
+                        facility.VOICE_PHONE = updatedFacility.VOICE_PHONE;
+                        facility.NPI = updatedFacility.NPI;
+                        $scope.setSearchableTextForFacility([facility]);
+                    }
+
+                    $scope.ShowFacilityEditedMsg = true;
+                    $scope.closeEditFacilityDialog();
+                }
+                else {
+                    //Updating facility entity info
+                    $scope.EntityInfoFacility = angular.copy(updatedFacility);
+                    $scope.ShowEntityInfoEditSubmittedMsg = true;
+                    $scope.closeEditFacilityDialog();
+                }
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in updating facility information.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.closeFacilityEditedAlert = function () {
+        $scope.ShowFacilityEditedMsg = false;
+    }
+
+    $scope.setSearchableTextForFacility = function (facilities) {
+        angular.forEach(facilities, function (facility) {
+            facility.SEARCHABLE_TEXT = facility.NAME + " " + facility.ADDRESS1 + " " + location.ADDRESS2 + " " + facility.CITY + " " + facility.STATE + " " + facility.ZIP;
+
+            //For Address sorting
+            facility.ADDRESS = facility.ADDRESS1 + " " + facility.ADDRESS2;
+        });
+    }
+
+    $scope.sortFacility = function (columnName) {
+        if ($scope.FacilitySort.sortColumn != columnName)
+            $scope.FacilitySort.reverse = false;
+        else
+            $scope.FacilitySort.reverse = !$scope.FacilitySort.reverse;
+
+        $scope.FacilitySort.sortColumn = columnName;
+    }
+
+    //end Facility methods
+
+    //Office Contacts methods
+
+    $scope.closeAllOfficeContactAlerts = function () {
+        $scope.ShowOfficeContactAddedMsg = false;
+        $scope.ShowOfficeContactEditedMsg = false;
+        $scope.ShowOfficeContactDeletedMsg = false;
+    }
+
+    $scope.showAddedOfficeContactAlerts = function () {
+        $scope.ShowOfficeContactAddedMsg = true;
+        $scope.ShowOfficeContactEditedMsg = false;
+        $scope.ShowOfficeContactDeletedMsg = false;
+    }
+
+    $scope.showEditedOfficeContactAlerts = function () {
+        $scope.ShowOfficeContactAddedMsg = false;
+        $scope.ShowOfficeContactEditedMsg = true;
+        $scope.ShowOfficeContactDeletedMsg = false;
+    }
+
+    $scope.showDeletedOfficeContactAlerts = function () {
+        $scope.ShowOfficeContactAddedMsg = false;
+        $scope.ShowOfficeContactEditedMsg = false;
+        $scope.ShowOfficeContactDeletedMsg = true;
+    }
+
+    $scope.closeOfficeContactAddedAlert = function () {
+        $scope.ShowOfficeContactAddedMsg = false;
+    }
+
+    $scope.closeOfficeContactEditedAlert = function () {
+        $scope.ShowOfficeContactEditedMsg = false;
+    }
+
+    $scope.closeOfficeContactDeletedAlert = function () {
+        $scope.ShowOfficeContactDeletedMsg = false;
+    }
+
+    $scope.populateLocationDropdownList = function () {
+        $scope.LocationDropdownList = null;
+        $scope.LoadingLocationDropDown = true;
+        $http({
+            method: 'GET',
+            url: '/DropList/GetLocations'
+        }).then(function successCallback(response) {
+            $scope.LocationDropdownList = response.data;
+            if ($scope.LocationDropdownList.length == 1) {
+                $scope.OfficeContactsLocationId = $scope.LocationDropdownList[0].LOCATION_ID;
+                $scope.setSelect2_Location();
+
+                $scope.locationDropdownListOnChange($scope.OfficeContactsLocationId);
+                $scope.LoadingLocationDropDown = false;
+            }
+            else {
+                var promise = $scope.GetCookie("SessionLocationID", 200);
+
+                promise.then(function (data) {
+                    // ok
+                    if (data && data.cookie && data.cookie != -1) {
+                        $scope.OfficeContactsLocationId = parseInt(data.cookie);
+                    }
+                    else {
+                        //If for some reasons there's no saved location, just auto pick the first one.
+                        $scope.OfficeContactsLocationId = parseInt($scope.LocationDropdownList[0].LOCATION_ID);
+                        $scope.SetCookie("SessionLocationID", $scope.OfficeContactsLocationId, 200);
+                    }
+
+                    $scope.setSelect2_Location();
+                    $scope.locationDropdownListOnChange($scope.OfficeContactsLocationId);
+                    $scope.LoadingLocationDropDown = false;
+                }, function (data) {
+                    // bad, do nothing
+                });
+
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in populating location list.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+            $scope.LoadingLocationDropDown = false;
+        });
+    }
+
+    $scope.setSelect2_Location = function () {
+        $(".wbx-select2-location").select2({
+            escapeMarkup: function (m) {
+                return m;
+            },
+            templateResult: function (data) {
+                if (data.text == "") {
+                    return;
+                }
+
+                var str = "";
+                var result = _.findWhere($scope.LocationDropdownList, { LOCATION_ID: parseInt(data.id) });
+                if (result != null) {
+                    str = $("<span><b>" + result.NAME + "</b> <br />" + result.ADDRESS1 + ", " + result.CITY + ", " + result.STATE + " " + result.ZIP + "</span>");
+                }
+                return str;
+            },
+            templateSelection: function (data) {
+                if ($scope.OfficeContactsLocationId == null) {
+                    return;
+                }
+
+                var str = "";
+                var result = _.findWhere($scope.LocationDropdownList, { LOCATION_ID: $scope.OfficeContactsLocationId });
+                if (result != null) {
+                    str = $("<span title=\"" + result.NAME + "&#10;" + result.ADDRESS1 + " " + result.CITY + " " + result.STATE + "," + result.ZIP + "" + "\"><b>" + result.NAME + "</b> (" + result.CITY + ", " + result.STATE + ", " + result.ZIP + ")</span>");
+                }
+                return str;
+            }
+        });
+    }
+
+    $scope.locationDropdownListOnChange = function (locationId) {
+        $scope.closeAllOfficeContactAlerts();
+        $scope.getOfficeContacts(locationId);
+    }
+
+    $scope.$watch('OfficeContactsLocationId', function (n, o) {
+        if (n != o && n != null) {
+            var result = _.findWhere($scope.LocationDropdownList, { LOCATION_ID: $scope.OfficeContactsLocationId });
+            if (result != null) {
+                $scope.OfficeContactsLocationName = result.NAME + ' (' + result.CITY + ', ' + result.STATE + ', ' + result.ZIP + ')';
+            }
+        }
+    });
+
+    $scope.getOfficeContacts = function (locationId) {
+        $scope.ShowOfficeContactsLoading = true;
+        $scope.OfficeContacts = [];
+        $http({
+            method: 'GET',
+            url: '/EntityManagement/GetOfficeContacts',
+            params: {
+                LOCATION_ID: locationId
+            }
+        }).then(function successCallback(response) {
+            $scope.OfficeContacts = response.data;
+            $scope.ShowOfficeContactsLoading = false;
+            $scope.setSearchableTextForOfficeContact($scope.OfficeContacts);
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting office contact list.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.showAddOfficeContact = function () {
+        $scope.IsOfficeContactEdit = false;
+        $scope.OfficeContactEdit = {
+            LOCATION_ID: $scope.OfficeContactsLocationId,
+            LOCATION_NAME: $scope.OfficeContactsLocationName
+        };
+
+        $scope.closeAllOfficeContactAlerts();
+        $scope.OfficeContactControl.showDialog();
+    }
+
+    $scope.submitOfficeContact = function (officeContact) {
+        if (!$scope.IsOfficeContactEdit) {
+            //Create a new row on the grid
+            var newOfficeContact = {};
+            newOfficeContact.OFFICE_CONTACT_ID = officeContact.OFFICE_CONTACT_ID;
+            newOfficeContact.DESCRIPTION = officeContact.DESCRIPTION;
+            newOfficeContact.FIRST_NAME = officeContact.FIRST_NAME;
+            newOfficeContact.LAST_NAME = officeContact.LAST_NAME;
+            newOfficeContact.VOICE_PHONE = officeContact.VOICE_PHONE;
+            newOfficeContact.FAX_PHONE = officeContact.FAX_PHONE;
+            newOfficeContact.EMAIL = officeContact.EMAIL;
+            $scope.setSearchableTextForOfficeContact([newOfficeContact]);
+            $scope.OfficeContacts.push(newOfficeContact);
+            $scope.showAddedOfficeContactAlerts();
+        }
+        else {
+            //Update existing row
+            var selectedOfficeContact = _.findWhere($scope.OfficeContacts, { OFFICE_CONTACT_ID: officeContact.OFFICE_CONTACT_ID })
+            selectedOfficeContact.DESCRIPTION = officeContact.DESCRIPTION;
+            selectedOfficeContact.FIRST_NAME = officeContact.FIRST_NAME;
+            selectedOfficeContact.LAST_NAME = officeContact.LAST_NAME;
+            selectedOfficeContact.VOICE_PHONE = officeContact.VOICE_PHONE;
+            selectedOfficeContact.FAX_PHONE = officeContact.FAX_PHONE;
+            selectedOfficeContact.EMAIL = officeContact.EMAIL;
+            $scope.setSearchableTextForOfficeContact([selectedOfficeContact]);
+
+            $scope.showEditedOfficeContactAlerts();
+        }
+    }
+
+    $scope.showEditOfficeContact = function (officeContact) {
+        $scope.IsOfficeContactEdit = true;
+
+        $scope.OfficeContactEdit.LOCATION_ID = $scope.OfficeContactsLocationId;
+        $scope.OfficeContactEdit.LOCATION_NAME = $scope.OfficeContactsLocationName;
+        $scope.OfficeContactEdit.OFFICE_CONTACT_ID = officeContact.OFFICE_CONTACT_ID;
+        $scope.OfficeContactEdit.DESCRIPTION = officeContact.DESCRIPTION;
+        $scope.OfficeContactEdit.FIRST_NAME = officeContact.FIRST_NAME;
+        $scope.OfficeContactEdit.LAST_NAME = officeContact.LAST_NAME;
+        $scope.OfficeContactEdit.VOICE_PHONE = officeContact.VOICE_PHONE;
+        $scope.OfficeContactEdit.FAX_PHONE = officeContact.FAX_PHONE;
+        $scope.OfficeContactEdit.EMAIL = officeContact.EMAIL;
+
+        $scope.closeAllOfficeContactAlerts();
+        $scope.OfficeContactControl.showDialog();
+    }
+
+    $scope.showDeleteOfficeContact = function (officeContact) {
+        $scope.OfficeContactDelete = officeContact;
+
+        $scope.DeleteOfficeContactTextArray = [$scope.OfficeContactDelete.DESCRIPTION, $scope.OfficeContactDelete.FIRST_NAME + ' ' + $scope.OfficeContactDelete.LAST_NAME];
+        $scope.closeAllOfficeContactAlerts();
+
+        $scope.DeleteOfficeContactDialogControl.showDialog();
+    }
+
+    $scope.confirmDeleteOfficeContact = function () {
+        $http({
+            url: "/EntityManagement/DeleteOfficeContact",
+            method: "PUT",
+            data: {
+                OFFICE_CONTACT_ID: $scope.OfficeContactDelete.OFFICE_CONTACT_ID
+            }
+        }).then(function successCallback(response) {
+            if (!response.data.Status) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in deleting office contact.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            }
+            else {
+                $scope.showDeletedOfficeContactAlerts();
+                var index = $scope.OfficeContacts.indexOf($scope.OfficeContactDelete);
+                $scope.OfficeContacts.splice(index, 1);
+            }
+
+            $scope.showDeletedOfficeContactAlerts();
+
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in deleting office contact.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+
+        $scope.DeleteOfficeContactDialogControl.hideDialog();
+    }
+
+    $scope.setSearchableTextForOfficeContact = function (officeContacts) {
+        angular.forEach(officeContacts, function (officeContact) {
+            officeContact.SEARCHABLE_TEXT = officeContact.DESCRIPTION + " " + officeContact.FIRST_NAME + " " + officeContact.LAST_NAME + " " + officeContact.VOICE_PHONE + " " + officeContact.FAX_PHONE + " " + officeContact.EMAIL;
+
+            //Due to sorting that is not working properly if it's null, set the null value with an empty string
+            if (officeContact.EMAIL == null) {
+                officeContact.EMAIL = '';
+            }
+
+            //To accomodate sorting based on both first and last name
+            officeContact.NAME = officeContact.FIRST_NAME + " " + officeContact.LAST_NAME;
+        });
+    }
+
+    $scope.sortOfficeContact = function (columnName) {
+        if ($scope.OfficeContactSort.sortColumn != columnName)
+            $scope.OfficeContactSort.reverse = false;
+        else
+            $scope.OfficeContactSort.reverse = !$scope.OfficeContactSort.reverse;
+
+        $scope.OfficeContactSort.sortColumn = columnName;
+    }
+
+    //end Office Contacts methods
+
+    //Group methods
+    $scope.getGroups = function () {
+        $scope.ShowGroupsLoading = true;
+        $scope.Groups = [];
+        $http({
+            method: 'GET',
+            url: '/EntityManagement/GetGroups'
+        }).then(function successCallback(response) {
+            $scope.Groups = response.data;
+            $scope.ShowGroupsLoading = false;
+            $scope.setSearchableTextForGroup($scope.Groups);
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting group list.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.setSearchableTextForGroup = function (groups) {
+        angular.forEach(groups, function (group, value) {
+            group.SEARCHABLE_TEXT = group.NAME + " (" + group.GROUP_NUMBER + ") " + group.ADDRESS1 + " " + group.ADDRESS2 + " " + group.CITY + " " + group.STATE + " " + group.ZIP;
+
+            //For Address sorting
+            group.ADDRESS = group.ADDRESS1 + " " + group.ADDRESS2;
+        });
+    }
+
+    $scope.sortGroup = function (columnName) {
+        if ($scope.GroupSort.sortColumn != columnName)
+            $scope.GroupSort.reverse = false;
+        else
+            $scope.GroupSort.reverse = !$scope.GroupSort.reverse;
+
+        $scope.GroupSort.sortColumn = columnName;
+    }
+    //end Group methods
+
+    $scope.GetCookie = function (key, module) {
+        var deferred = $q.defer();
+
+        $http({
+            cache: false,
+            url: "/WebSession/GetCookie",
+            method: "GET",
+            params: {
+                key: key,
+                module: module
+            }
+        }).then(function successCallback(response) {
+            deferred.resolve(response.data);
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting cookie.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+            deferred.reject(false);
+        });
+
+        return deferred.promise;
+    }
+
+    $scope.SetCookie = function (key, value, module) {
+        $http({
+            cache: false,
+            url: "/WebSession/SetCookie",
+            method: "PUT",
+            data: {
+                key: key,
+                value: value,
+                module: module
+            }
+        }).then(function successCallback(response) {
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in setting cookie.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.showPageDataLog = function () {
+        console.log({
+            Sessions: $scope.sessions,
+            EntityInfo: {
+                Payee: $scope.EntityInfoPayee,
+                Location: $scope.EntityInfoLocation,
+                Provider: $scope.EntityInfoProvider,
+                Facility: $scope.EntityInfoFacility,
+                Client: $scope.EntityInfoClient,
+                Group: $scope.EntityInfoGroup
+            },
+            LocationList: $scope.LocationList,
+            ProviderList: $scope.ProviderList,
+            Facilities: $scope.Facilities,
+            OfficeContacts: $scope.OfficeContacts,
+            OfficeContactLocationDropdown: $scope.LocationDropdownList,
+            Groups: $scope.Groups
+        });
+    }
+
+    $scope.showLocationVerificationInfoLog = function () {
+        //Setup new hours
+        $scope.LocationEdit.NewHours = [];
+        $scope.addNewHour("MON");
+        $scope.addNewHour("TUE");
+        $scope.addNewHour("WED");
+        $scope.addNewHour("THU");
+        $scope.addNewHour("FRI");
+        $scope.addNewHour("SAT");
+        $scope.addNewHour("SUN");
+
+        console.log({
+            Info: $scope.LocationEdit.Info,
+            Languages: $scope.LocationEdit.NewLanguages,
+            Hours: $scope.LocationEdit.NewHours,
+            AssociatedProviders: $scope.LocationEdit.NewAssociatedProviders
+        });
+    }
+
+    $scope.showProviderVerificationInfoLog = function () {
+        console.log({
+            Info: $scope.ProviderEdit.Info,
+            Languages: $scope.ProviderEdit.NewLanguages,
+            Specialties: $scope.ProviderEdit.NewSpecialties,
+        });
+    }
+
+    //Verification Statuses
+    $scope.showVerificationStatusDescription = function () {
+        $scope.StatusTypeToShow = 7; //Verification Statuses
+        $scope.ShowStatusDescriptionDialog = true;
+    }
+
+    $scope.showLocationVerificationStep1ErrorFields = function () {
+        console.log($scope.verification_location_step1_form.$error);
+    }
+
+    $scope.showLocationVerificationStep2ErrorFields = function () {
+        console.log($scope.verification_location_step2_form.$error);
+    }
+
+    $scope.showLocationVerificationStep3ErrorFields = function () {
+        console.log($scope.verification_location_step3_form.$error);
+    }
+
+    $scope.showProviderVerificationErrorFields = function () {
+        console.log($scope.verification_provider_form.$error);
+    }
+
+    $scope.updateUIVerificationStatus = function (entity, isVerify, fromGrid, isLocation) {
+        if (entity.VERIFICATION_STATUS > 2) {
+            WBXVerificationCountService.decreaseVerificationCount();
+            if (fromGrid) {
+                if (isLocation) {
+                    $scope.LocationNeededAttentionCount--;
+                }
+                else {
+                    $scope.ProviderNeededAttentionCount--;
+                }
+            }
+        }
+        entity.VERIFICATION_STATUS = 2;
+        //This is to mark if the record is update only or not. the Edit button may be disabled
+        entity.UPDATE_ONLY_FLAG = !isVerify;
+    }
+
+    $scope.hasAgeRestrictionOnClick = function(hasAgeRestriction) {
+        if (!hasAgeRestriction) {
+            $scope.LocationEdit.Info.AGE_MIN = null;
+            $scope.LocationEdit.Info.AGE_MAX = null;
+        }
+    }
+
+    $scope.showEntityPanel = function () {
+        $scope.IsEntityInfoPanelCollapsed = false;
+        $('#EntityBody').collapse('show');
+    }
+
+    $scope.toggleEntityPanel = function () {
+        $scope.IsEntityInfoPanelCollapsed = !$scope.IsEntityInfoPanelCollapsed;
+        $('#EntityBody').collapse('toggle');
+    }
+
+    $scope.$watch('AreStatusListLoaded', function (n, o) {
+        if (n) {
+            $scope.VerificationStatusList = $scope.StatusDescriptionLists[0].List;
+            $scope.InvertedLocationVerificationStatusList = [];
+            $scope.InvertedProviderVerificationStatusList = [];
+            //Insert icons
+            var color = "";
+            angular.forEach($scope.VerificationStatusList, function (verStatus) {
+                color = verStatus.IsGreen ? "wbx-success-color" : (verStatus.IsGold ? "wbx-warning-color" : (verStatus.IsRed ? "wbx-danger-color" : ""));
+                if (verStatus.PORTAL_STATUS == 1) {
+                    verStatus.MultiIcon = '<span class="wbx-fa-stack"><span class="fa-stack fa-lg wbx-success-color"><i class="fa fa-shield fa-stack-1x"></i><i class="fa fa-shield fa-stack-1x fa-flip-horizontal" style="left:-1px"></i><i class="fa fa-check fa-stack-1x fa-inverse" style="font-size:50%"></i></span></span>';
+                    verStatus.MultiName = '<span ' + color + ' style="margin-left:3px">' + verStatus.NAME + '</span>';
+                }
+                else if (verStatus.PORTAL_STATUS == 2) {
+                    verStatus.MultiIcon = '<span class="wbx-fa-stack"><span class="fa-stack fa-lg wbx-warning-color"><i class="fa fa-shield fa-stack-1x"></i><i class="fa fa-shield fa-stack-1x fa-flip-horizontal" style="left:-1px"></i><i class="fa fa-check fa-stack-1x fa-inverse" style="font-size:50%"></i></span></span>';
+                    verStatus.MultiName = '<span ' + color + ' style="margin-left:3px">' + verStatus.NAME + '</span>';
+                }
+                else {
+                    verStatus.MultiIcon = '<i class="fa fa-' + $scope.Icons[verStatus.PORTAL_STATUS] + ' ' + color + ' wbx-right-margin-xxs" style="margin-left:3px"></i>';
+                    verStatus.MultiName = '<span ' + color + '>' + verStatus.NAME + '</span>';
+                }
+                $scope.InvertedLocationVerificationStatusList.unshift(angular.copy(verStatus));
+                $scope.InvertedProviderVerificationStatusList.unshift(angular.copy(verStatus));
+            });
+
+            $scope.AreStatusListsSet = true;
+        }
+    });
+
+    $scope.$watch('[LocationsResultReturned, AreStatusListsSet]', function (n, o) {
+        if (n[0] && n[1]) {
+            $scope.ShowLocationsLoading = false;
+        }
+    }, true);
+
+    $scope.$watch('[ProvidersResultReturned, AreStatusListsSet]', function (n, o) {
+        if (n[0] && n[1]) {
+            $scope.ShowProvidersLoading = false;
+        }
+    }, true);
+
+    $scope.$watch('LocationEdit.NewLanguages', function (n, o) {
+        if (n != null && o != null && n.length != o.length) {
+            $scope.verification_location_step1_form.$setDirty();
+        }
+    }, true);
+
+    $scope.$watch('ProviderEdit.NewLanguages', function (n, o) {
+        if (n != null && o != null && n.length != o.length) {
+            $scope.verification_provider_form.$setDirty();
+        }
+    }, true);
+
+    $scope.$watch('ProviderEdit.NewSpecialties', function (n, o) {
+        if (n != null && o != null && n.length != o.length) {
+            $scope.verification_provider_form.$setDirty();
+        }
+    }, true);
+
+
+    
+
+    /* Open Modals */
+    $scope.openEftModel = function () {
+        var modalInstance = $uibModal.open({
+            animation: true,
+            backdrop: 'static',
+            ariaLabelledBy: 'modal-title',
+            ariaDescribedBy: 'modal-body',
+            templateUrl: '/Template/EftEdit.html',
+            controller: 'EftEditCtrl',
+            //scope: $scope,
+            size: "lg",
+            resolve: {
+                eftDetails: function () {
+                    return [];
+                }
+            }
+        });
+        
+        modalInstance.result.then(function (eftDetail) {
+            $scope.eft = {
+                    TYPE: eftDetail.EFT_ACCOUNT_TYPE,
+                    ROUTING: eftDetail.EFT_ROUTING_NUMBER,
+                    ACCOUNT: eftDetail.EFT_ACCOUNT_NUMBER,
+                    CONFIRMED: false
+                };
+
+            //$window._eft = angular.copy($scope.eft);
+
+            if (eftDetail.agreeToTerms) {
+                $scope.eftSuccess = true;
+            }
+
+            
+        }, function () {
+            $scope.eftSuccess = false;
+            // Dismissed
+        });
+    };
+}
+
+
+app.controller('EftEditCtrl',
+[
+    '$uibModalInstance', '$scope',  'API', 'ErrorHandler', 'ValidationService', '$timeout', 'DataService',  function ($uibModalInstance, $scope, API, ErrorHandler, ValidationService, $timeout, DataService) {
+        // @todo move to root scope.
+        $scope.$validationOptions = { hideErrorUnderInputs: true };
+        
+        $scope.rules = DataService.rules();
+
+
+        // @todo move to root scope.
+        $scope.tooltips = {};
+
+        $scope.validate = function () {
+            $timeout(function () {
+                $scope.tooltips = {};
+                _.each($scope.eftForm.$validationSummary, function (obj, idx) {
+                    $scope.tooltips[obj.field] = obj.message.split('.')[0]; //obj.message;
+                });
+            });
+        }
+
+        /* Model */
+        $scope.model = {
+            agreeToTerms: false,
+            EFT_ACCOUNT_TYPE: null,
+            EFT_ROUTING_NUMBER: null,
+            EFT_ACCOUNT_NUMBER: null
+        };
+
+        /* Error States */
+        $scope.errors = {
+            duplicateAccount: false // Trying to add the same account twice will cause an exception.
+        };
+
+
+        /* Data */
+        $scope.agreement =  DataService.agreement;
+        $scope.eftAccountTypes = DataService.eftAccountTypes;
+        $scope.eft = angular.copy(DataService.eft);
+
+        $scope.isDuplicate = function() {
+            $scope.errors.duplicateAccount = ($scope.eft.ACCOUNT === $scope.model.EFT_ACCOUNT_NUMBER &&
+                $scope.eft.ROUTING === $scope.model.EFT_ROUTING_NUMBER);
+        }
+
+        $scope.errorHandler = ErrorHandler;
+
+        ErrorHandler.clear();
+
+        function redact(str) {
+            if (str.length <= 8) {
+                return '****';
+            }
+            return str.replace(/.(?=.{4})/g, '*');
+        }
+
+        /* Methods */
+        $scope.ok = function () {
+
+            API.post('/EntityManagement/EFT', $scope.model).then(
+                function (response) {
+                    $scope.model.EFT_ACCOUNT_NUMBER = redact($scope.model.EFT_ACCOUNT_NUMBER);
+                    $scope.model.EFT_ROUTING_NUMBER = redact($scope.model.EFT_ROUTING_NUMBER);
+                    $uibModalInstance.close($scope.model);
+                },
+                function (response) {
+                    
+                });
+        };
+
+        $scope.cancel = function () {
+            $uibModalInstance.dismiss('cancel');
+        };
+
+    }
+]);
+app.controller('HomeCtrl', HomeCtrl);
+
+function HomeCtrl($scope, $http, $location) {
+    
+
+}
+
+
+app.controller('LandingCtrl', LandingCtrl);
+
+function LandingCtrl($scope, $http, $location) {
+    
+
+
+}
+
+
+app.controller('LoginCtrl', LoginCtrl);
+LoginCtrl.$inject = ['$scope', '$http', '$window'];
+
+function LoginCtrl($scope, $http, $window) {
+    $scope.loginInfo = {};
+    $scope.message = "";
+    $scope.errorMessage = "";
+
+    $scope.login = function () {
+
+        if ($scope.failed_login_form.$invalid) {
+            return false;
+        }
+
+        $http({
+            cache: false,
+            url: "/Account/GetRedirectUrl",
+            method: "POST",
+            data: {
+                UserName: $scope.loginInfo.USER_NAME,
+                Password: $scope.loginInfo.PASSWORD,
+                RememberMe: false
+            }
+        }).then(function successCallback(response) {
+            if (response.data != null) {
+                $window.location.href = response.data;
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting redirect url.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.resetPassword = function () {
+
+        if ($scope.reset_password_form.$invalid) {
+            return false;
+        }
+
+        $scope.errorMessage = "";
+        $scope.message = "";
+
+        $http({
+            cache: false,
+            url: "/Account/ResetPassword",
+            method: "POST",
+            params: {
+                USER_NAME: $scope.loginInfo.USER_NAME
+            }
+        }).then(function successCallback(response) {
+            if (response.data != null) {
+                if (response.data.error == true)
+                    $scope.errorMessage = response.data.message;
+                else
+                    $scope.message = response.data.message;
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in resetting password.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.forgotUsername = function () {
+
+        if ($scope.forgot_username_form.$invalid) {
+            return false;
+        }
+
+        $scope.errorMessage = "";
+        $scope.message = "";
+
+        $http({
+            cache: false,
+            url: "/Account/RequestUserName",
+            method: "POST",
+            params: {
+                EMAIL: $scope.loginInfo.EMAIL
+            }
+        }).then(function successCallback(response) {
+            if (response.data != null) {
+                if (response.data.error == true)
+                    $scope.errorMessage = response.data.message;
+                else
+                    $scope.message = response.data.message;
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in requesting user name.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.showMessage = function () {
+        if ($scope.message == "")
+            return false;
+        else
+            return true;
+    }
+
+    $scope.showErrorMessage = function () {
+        if ($scope.errorMessage == "")
+            return false;
+        else
+            return true;
+    }
+
+
+}
+
+
+
+app.controller('PortalUserAccountsCtrl', PortalUserAccountsCtrl);
+PortalUserAccountsCtrl.$inject = ['$scope', '$http', '$filter', '$q'];
+
+function PortalUserAccountsCtrl($scope, $http, $filter, $q) {
+    $scope.users = null;
+    $scope.userEdit = {};
+    $scope.userDelete = {};
+    $scope.isUserEdit = false;
+    $scope.showUsersLoading = false;
+    $scope.showUserAddedMsg = false;
+    $scope.showUserEditedMsg = false;
+    $scope.showUserDeletedMsg = false;
+    $scope.showRegistrationProcessingMsg = false;
+
+    //roles management
+    $scope.rolesManagementRoles = null;
+    $scope.rolesManagementFeatures = null;
+    $scope.rolesManagementFeaturesStatus = null;
+    $scope.selectedRole = null;
+    $scope.roleNameEdit = null;
+    $scope.needToUpdateUsersList = false;
+    $scope.isRoleMgmtMain = false;
+    $scope.isRoleMgmtCreate = false;
+    $scope.isRoleMgmtEdit = false;
+
+    $scope.showFeatureList = false;
+    $scope.showRoleCreatedMsg = false;
+    $scope.showRoleUpdatedMsg = false;
+    $scope.showRoleDeletedMsg = false;
+    $scope.showCreateDuplicateRoleMsg = false;
+    
+    $scope.userSort = {
+        sortColumn: 'NAME',
+        reverse: false
+    };
+
+
+    $scope.init = function () {
+        $scope.showEntityInfoLoading = true;
+        $scope.getUsers();
+    }
+
+    //Users
+    $scope.closeAllUserAlerts = function () {
+        $scope.showUserAddedMsg = false;
+        $scope.showUserEditedMsg = false;
+        $scope.showUserDeletedMsg = false;
+    }
+
+    $scope.showAddedUserAlerts = function () {
+        $scope.showUserAddedMsg = true;
+        $scope.showUserEditedMsg = false;
+        $scope.showUserDeletedMsg = false;
+    }
+
+    $scope.showEditedUserAlerts = function () {
+        $scope.showUserAddedMsg = false;
+        $scope.showUserEditedMsg = true;
+        $scope.showUserDeletedMsg = false;
+    }
+
+    $scope.showDeletedUserAlerts = function() {
+        $scope.showUserAddedMsg = false;
+        $scope.showUserEditedMsg = false;
+        $scope.showUserDeletedMsg = true;
+    }
+
+    $scope.getUsers = function () {
+        $scope.showUsersLoading = true;
+        $scope.users = [];
+        $http({
+            method: 'GET',
+            url: '/PortalUserAccounts/GetUsers'
+        }).then(function successCallback(response) {
+            if (response.data.Status) {
+                //Only set it if the status is good.
+                $scope.users = response.data.Data;
+                $scope.setSearchableTextForUser($scope.users);
+            }
+            else {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in getting user list.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            }
+            $scope.showUsersLoading = false;
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting user list.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+            
+            $scope.showUsersLoading = false;
+        });
+    }
+
+    $scope.showAddUser = function () {
+        $scope.isUserEdit = false;
+        var promise = $scope.getRoles();
+        promise.then(function (data) {
+            // ok
+            $scope.userEdit.Role = $scope.rolesManagementRoles[0];
+        }, function (data) {
+            // bad, do nothing
+        });
+
+        //This is set individually because we don't want to set the FEATURE_GROUP_ID (role).
+        //This is set when it's loaded in the directive.
+        $scope.userEdit.DOMAIN_SOURCE_ID = '';
+        $scope.userEdit.FIRST_NAME = '';
+        $scope.userEdit.MIDDLE_NAME = '';
+        $scope.userEdit.LAST_NAME = '';
+        $scope.userEdit.USER_NAME = '';
+        $scope.userEdit.PASSWORD = '';
+        $scope.userEdit.CONFIRM_PASSWORD = '';
+        $scope.userEdit.EMAIL = '';
+        
+        $scope.closeAllUserAlerts();
+
+        $('#EditUserDialog').modal({
+            backdrop: 'static'
+        })
+        $('#EditUserDialog').modal('show');
+    }
+
+    $scope.submitUser = function (userInfo) {
+        if ($scope.registration_form.$invalid) {
+            return false;
+        }
+
+        $scope.showRegistrationProcessingMsg = true;
+        if (!$scope.isUserEdit) {
+            //Add
+            $http({
+                url: "/PortalUserAccounts/CreateUser",
+                method: "PUT",
+                data: {
+                    FIRST_NAME: userInfo.FIRST_NAME,
+                    MIDDLE_NAME: userInfo.MIDDLE_NAME,
+                    LAST_NAME: userInfo.LAST_NAME,
+                    USER_NAME: userInfo.USER_NAME,
+                    PASSWORD: userInfo.PASSWORD,
+                    EMAIL: userInfo.EMAIL,
+                    FEATURE_GROUP_ID: userInfo.Role.FEATURE_GROUP_ID
+                }
+            }).then(function successCallback(response) {
+                $scope.showRegistrationProcessingMsg = false;
+                if (!response.data.Status) {
+                    console.error(response.data.Message);
+                    console.error(response);
+                    if ($scope.ExceptionDialogControl != null) {
+                        $scope.ExceptionDialogControl.showDialog("Error in creating a new user.");
+                    }
+                    else {
+                        bootbox.alert(response.data.Message);
+                    }
+                }
+                else {
+                    var newUser = {};
+                    newUser.DOMAIN_SOURCE_ID = response.data.Data.DOMAIN_SOURCE_ID;
+                    newUser.FIRST_NAME = userInfo.FIRST_NAME;
+                    newUser.MIDDLE_NAME = userInfo.MIDDLE_NAME;
+                    newUser.LAST_NAME = userInfo.LAST_NAME;
+                    newUser.USER_NAME = userInfo.USER_NAME;
+                    newUser.PASSWORD = userInfo.PASSWORD;
+                    newUser.EMAIL = userInfo.EMAIL;
+                    newUser.LAST_LOGIN = 'Has never logged in';
+                    newUser.LOCKOUT_DESCRIPTION = '';
+                    newUser.FEATURE_GROUP_ID = userInfo.Role.FEATURE_GROUP_ID;
+                    newUser.FEATURE_GROUP_NAME = userInfo.Role.NAME;
+                    newUser.ACTIVE = true;
+                    $scope.setSearchableTextForUser([newUser]);
+
+                    $scope.users.push(newUser);
+                    $scope.showAddedUserAlerts();
+
+                    $scope.closeEditUserDialog();
+                }
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in creating a new user.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+                
+                $scope.showRegistrationProcessingMsg = false;
+            });
+        }
+        else {
+            //Edit
+            $http({
+                url: "/PortalUserAccounts/UpdateUser",
+                method: "PUT",
+                data: {
+                    DOMAIN_SOURCE_ID: userInfo.DOMAIN_SOURCE_ID,
+                    FIRST_NAME: userInfo.FIRST_NAME,
+                    MIDDLE_NAME: userInfo.MIDDLE_NAME,
+                    LAST_NAME: userInfo.LAST_NAME,
+                    USER_NAME: userInfo.USER_NAME,
+                    EMAIL: userInfo.EMAIL,
+                    FEATURE_GROUP_ID: userInfo.Role.FEATURE_GROUP_ID
+                }
+            }).then(function successCallback(response) {
+                if (!response.data.Status) {
+                    console.error(response.data.Message);
+                    console.error(response);
+                    if ($scope.ExceptionDialogControl != null) {
+                        $scope.ExceptionDialogControl.showDialog("Error in updating user information.");
+                    }
+                    else {
+                        bootbox.alert(response.data.Message);
+                    }
+                }
+                else {
+                    angular.forEach($scope.users, function (user, value) {
+                        if (user.DOMAIN_SOURCE_ID == userInfo.DOMAIN_SOURCE_ID) {
+                            user.FIRST_NAME = userInfo.FIRST_NAME;
+                            user.MIDDLE_NAME = userInfo.MIDDLE_NAME;
+                            user.LAST_NAME = userInfo.LAST_NAME;
+                            user.USER_NAME = userInfo.USER_NAME;
+                            user.EMAIL = userInfo.EMAIL;
+                            user.FEATURE_GROUP_ID = userInfo.Role.FEATURE_GROUP_ID;
+                            user.FEATURE_GROUP_NAME = userInfo.Role.NAME;
+                            $scope.setSearchableTextForUser([user]);
+                            $scope.showRegistrationProcessingMsg = false;
+
+                            $scope.showEditedUserAlerts();
+
+                            $scope.closeEditUserDialog();
+                        }
+                    });
+                }
+
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in updating user information.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+                
+            });
+        }
+        $scope.registration_form.$setPristine();
+    }
+
+    $scope.closeUserAddedAlert = function () {
+        $scope.showUserAddedMsg = false;
+    }
+
+    $scope.showEditUser = function (userInfo) {
+        var promise = $scope.getRoles();
+        promise.then(function (data) {
+            // ok
+            angular.forEach($scope.rolesManagementRoles, function (key, value) {
+                if (key.FEATURE_GROUP_ID == userInfo.FEATURE_GROUP_ID) {
+                    $scope.userEdit.Role = key;
+                }
+            });
+        }, function (data) {
+            // bad, do nothing
+        });
+
+        $scope.userEdit.DOMAIN_SOURCE_ID = userInfo.DOMAIN_SOURCE_ID;
+        $scope.userEdit.FIRST_NAME = userInfo.FIRST_NAME;
+        $scope.userEdit.MIDDLE_NAME = userInfo.MIDDLE_NAME;
+        $scope.userEdit.LAST_NAME = userInfo.LAST_NAME;
+        $scope.userEdit.USER_NAME = userInfo.USER_NAME;
+        $scope.userEdit.PASSWORD = userInfo.PASSWORD;
+        $scope.userEdit.CONFIRM_PASSWORD = userInfo.PASSWORD;
+        $scope.userEdit.EMAIL = userInfo.EMAIL;
+       
+        $scope.closeAllUserAlerts();
+
+        $scope.isUserEdit = true;
+        $('#EditUserDialog').modal({
+            backdrop: 'static'
+        })
+        $('#EditUserDialog').modal('show');
+    }
+
+    $scope.closeEditUserDialog = function () {
+        //If it's not a valid email, it has to be explicitly cleared because 
+        // angular doesn't bind until the value is valid.
+        //In this case, if it's not a valid email, angular doesn't bind it and 
+        // it's not automatically cleared.
+        if ($scope.registration_form.EmailTextBox.$invalid) {
+            $('#EmailTextBox')[0].value = "";
+        }
+        //$scope.clearFields = true;
+        $scope.registration_form.$setPristine();
+
+        $('#EditUserDialog').modal('hide');
+    }
+
+    $scope.closeUserEditedAlert = function () {
+        $scope.showUserEditedMsg = false;
+    }
+
+    $scope.showDeleteUserDialog = function (user) {
+        $scope.userDelete = user;
+        $scope.DeleteTextArrayDialog = [$scope.userDelete.FIRST_NAME + ' ' + $scope.userDelete.LAST_NAME, $scope.userDelete.EMAIL];
+        $scope.closeAllUserAlerts();
+
+        $scope.DeleteUserDialogControl.showDialog();
+    }
+
+    $scope.closeDeleteUserDialog = function () {
+        $scope.DeleteUserDialogControl.hideDialog();
+    }
+
+    $scope.confirmDeleteUser = function () {
+        $http({
+            url: '/PortalUserAccounts/DeleteUser',
+            method: "PUT",
+            data: {
+                DOMAIN_SOURCE_ID: $scope.userDelete.DOMAIN_SOURCE_ID
+            }
+        }).then(function successCallback(response) {
+            if (!response.data.Status) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in deleting user.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            }
+            else {
+                $scope.showDeletedUserAlerts();
+                var index = $scope.users.indexOf($scope.userDelete);
+                $scope.users.splice(index, 1);
+            }
+
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in deleting user.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+        
+        $scope.closeDeleteUserDialog();
+    }
+
+    $scope.closeUserDeletedAlert = function () {
+        $scope.showUserDeletedMsg = false;
+    }
+
+    $scope.lockAccount = function (user) {
+        $scope.closeAllUserAlerts();
+        $http({
+            url: '/PortalUserAccounts/LockUser',
+            method: "PUT",
+            data: {
+                DOMAIN_SOURCE_ID: user.DOMAIN_SOURCE_ID
+            }
+        }).then(function successCallback(response) {
+            if (!response.data.Status) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in locking user.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            }
+            else {
+                user.ACTIVE = false;
+                user.LOCKOUT_DESCRIPTION = 'Locked by Parent Account';
+                $scope.setSearchableTextForUser([user]);
+            }
+
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in locking user.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.unlockAccount = function (user) {
+        $scope.closeAllUserAlerts();
+        $http({
+            url: '/PortalUserAccounts/UnlockUser',
+            method: "PUT",
+            data: {
+                DOMAIN_SOURCE_ID: user.DOMAIN_SOURCE_ID
+            }
+        }).then(function successCallback(response) {
+            if (!response.data.Status) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in unlocking user.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            }
+            else {
+                user.ACTIVE = true;
+                user.LOCKOUT_DESCRIPTION = '';
+                $scope.setSearchableTextForUser([user]);
+            }
+
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in unlocking user.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.setSearchableTextForUser = function (users) {
+        angular.forEach(users, function (user, value) {
+            user.SEARCHABLE_TEXT = user.FIRST_NAME + " " + user.LAST_NAME + " " + user.USER_NAME + " " + user.EMAIL + " " + user.FEATURE_GROUP_NAME + " " + user.LAST_LOGIN + " " + user.LOCKOUT_DESCRIPTION;
+            if (user.ACTIVE) {
+                user.SEARCHABLE_TEXT += " Active";
+            }
+            else {
+                user.SEARCHABLE_TEXT += " Locked";
+            }
+
+            //To accomodate sorting based on both first and last name
+            user.NAME = user.FIRST_NAME + " " +user.LAST_NAME;
+        });
+    }
+
+    $scope.sortUser = function (columnName) {
+        if ($scope.userSort.sortColumn != columnName)
+            $scope.userSort.reverse = false;
+        else
+            $scope.userSort.reverse = !$scope.userSort.reverse;
+
+        $scope.userSort.sortColumn = columnName;
+    }
+    //End users
+
+    //Roles management
+    $scope.setMainMode = function () {
+        $scope.isRoleMgmtMain = true;
+        $scope.isRoleMgmtCreate = false;
+        $scope.isRoleMgmtEdit = false;
+    }
+
+    $scope.setCreateMode = function () {
+        $scope.isRoleMgmtMain = false;
+        $scope.isRoleMgmtCreate = true;
+        $scope.isRoleMgmtEdit = false;
+    }
+
+    $scope.setEditMode = function () {
+        $scope.isRoleMgmtMain = false;
+        $scope.isRoleMgmtCreate = false;
+        $scope.isRoleMgmtEdit = true;
+    }
+
+    $scope.closeAllRoleAlerts = function () {
+        $scope.showRoleCreatedMsg = false;
+        $scope.showRoleUpdatedMsg = false;
+        $scope.showRoleDeletedMsg = false;
+        $scope.showCreateDuplicateRoleMsg = false;
+        }
+
+    $scope.showCreatedRoleAlert = function () {
+        $scope.showRoleCreatedMsg = true;
+        $scope.showRoleUpdatedMsg = false;
+        $scope.showRoleDeletedMsg = false;
+        $scope.showCreateDuplicateRoleMsg = false;
+    }
+
+    $scope.showUpdatedRoleAlert = function () {
+        $scope.showRoleCreatedMsg = false;
+        $scope.showRoleUpdatedMsg = true;
+        $scope.showRoleDeletedMsg = false;
+        $scope.showCreateDuplicateRoleMsg = false;
+    }
+
+    $scope.showDeletedRoleAlert = function () {
+        $scope.showRoleCreatedMsg = false;
+        $scope.showRoleUpdatedMsg = false;
+        $scope.showRoleDeletedMsg = true;
+        $scope.showCreateDuplicateRoleMsg = false;
+    }
+
+    $scope.showCreateDuplicateRoleAlert = function () {
+        $scope.showRoleCreatedMsg = false;
+        $scope.showRoleUpdatedMsg = false;
+        $scope.showRoleDeletedMsg = false;
+        $scope.showCreateDuplicateRoleMsg = true;
+    }
+
+    $scope.getRoles = function () {
+        var deferred = $q.defer();
+
+        if ($scope.rolesManagementRoles == null) {
+            $scope.showRolesLoading = true;
+            $http({
+                method: 'GET',
+                url: '/PortalUserAccounts/GetRoles'
+            }).then(function successCallback(response) {
+                if (response.data.Status) {
+                    //Only set it if the status is good.
+                    if (response.data.Data.length > 0) {
+                        $scope.rolesManagementRoles = response.data.Data;
+                    }
+                    deferred.resolve(true);
+                }
+                else {
+                    console.error(response.data.Message);
+                    console.error(response);
+                    if ($scope.ExceptionDialogControl != null) {
+                        $scope.ExceptionDialogControl.showDialog("Error in getting role list.");
+                    }
+                    else {
+                        bootbox.alert(response.data.Message);
+                    }
+                    deferred.reject(false);
+                }
+                $scope.showRolesLoading = false;
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in getting role list.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+
+                deferred.reject(false);
+                $scope.showRolesLoading = false;
+            });
+        }
+        else {
+            deferred.resolve(true);
+        }
+
+        return deferred.promise;
+    }
+
+    $scope.getFeatures = function () {
+        if ($scope.rolesManagementFeatures == null) {
+            $http({
+                method: 'GET',
+                url: '/PortalUserAccounts/GetFeatures'
+            }).then(function successCallback(response) {
+                if (response.data.Status) {
+                    //Only set it if the status is good.
+                    if (response.data.Data.length > 0) {
+                        $scope.rolesManagementFeatures = response.data.Data;
+                    }
+                }
+                else {
+                    console.error(response.data.Message);
+                    console.error(response);
+                    if ($scope.ExceptionDialogControl != null) {
+                        $scope.ExceptionDialogControl.showDialog("Error in getting feature list.");
+                    }
+                    else {
+                        bootbox.alert(response.data.Message);
+                    }
+                }
+            }, function errorCallback(response) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in getting feature list.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            });
+        }
+    }
+
+    $scope.getFeaturesStatus = function (featureGroupId, isParent) {
+        $http({
+            method: 'GET',
+            url: '/PortalUserAccounts/GetFeaturesStatus',
+            params: {
+                FEATURE_GROUP_ID: featureGroupId,
+                IS_PARENT: isParent
+            }
+        }).then(function successCallback(response) {
+            if (response.data.length > 0) {
+                $scope.rolesManagementFeaturesStatus = response.data;
+                $scope.setUIFeatureStatuses();
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting feature statuses.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.setUIFeatureStatuses = function (isInit) {
+        angular.forEach($scope.rolesManagementFeatures, function (category, value)
+        {
+            angular.forEach(category.FEATURES, function (feature, value)
+            {
+                //This is to clear the flag
+                feature.ENABLED_FLAG = false;
+
+                if (!isInit) {
+                    angular.forEach($scope.rolesManagementFeaturesStatus, function (status, value) {
+                        if (feature.FEATURE_ID == status.FEATURE_ID) {
+                            feature.ENABLED_FLAG = status.ENABLED_FLAG;
+                        }
+                    });
+                }
+                else
+                {
+                    feature.ENABLED_FLAG = true;
+                }
+            });
+        });
+    }
+
+    $scope.showManageUserRoles = function () {
+        $scope.getRoles();
+        $scope.getFeatures();
+
+        $scope.rolesManagementFeaturesStatus = null;
+        $scope.selectedRole = null;
+        $scope.setMainMode();
+        $scope.showFeatureList = false;
+        $scope.needToUpdateUsersList = false;
+        $('#ManageRolesDialog').modal({
+            backdrop: 'static'
+        })
+        $('#ManageRolesDialog').modal('show');
+    }
+
+    $scope.closeManageRolesDialog = function () {
+        $scope.closeAllRoleAlerts();
+        $('#ManageRolesDialog').modal('hide');
+        if ($scope.needToUpdateUsersList) {
+            //If a role is deleted, we'll refresh the users list.
+            $scope.getUsers();
+        }
+    }
+
+    $scope.cancelManageRoles = function () {
+        if ($scope.isRoleMgmtCreate) {
+            $scope.selectedRole = null;
+            $scope.showFeatureList = false;
+        }
+        else {
+            //If undo on edit, restore the old name and features
+            $scope.getFeaturesStatus($scope.selectedRole.FEATURE_GROUP_ID, false);
+        }
+        $scope.setMainMode();
+        $scope.roles_form.$setPristine();
+    }
+
+    $scope.editRoleName = function (roleName) {
+        $scope.roleNameEdit = roleName;
+        $scope.setEditMode();
+    }
+
+    $scope.showCreateRole = function () {
+        $scope.roles_form.$setPristine();
+        $scope.rolesManagementFeaturesStatus = null;
+        $scope.selectedRole = null;
+        $scope.roleNameEdit = null;
+        $scope.setCreateMode();
+
+        $scope.showFeatureList = true;
+        $scope.setUIFeatureStatuses(true);
+        $scope.closeAllRoleAlerts();
+    }
+
+    $scope.submitRole = function () {
+        if ($scope.roles_form.$invalid) {
+            return false;
+        }
+        
+        if ($scope.selectedRole == null) {
+            $scope.createRole($scope.roleNameEdit);
+        }
+        else {
+            if ($scope.isRoleMgmtEdit) {
+                $scope.updateRoleName($scope.roleNameEdit);
+            }
+            else {
+                $scope.setSQLFeatureStatuses(false);
+            }
+        }
+    }
+
+    $scope.createRole = function (roleName) {
+        if ($filter('lowercase')(roleName) == 'default') {
+            $scope.showCreateDuplicateRoleAlert();
+            return;
+        }
+        $http({
+            url: '/PortalUserAccounts/CreateRole',
+            method: "PUT",
+            data: {
+                NAME: roleName
+            }
+        }).then(function successCallback(response) {
+            if (!response.data.Status) {
+                if (response.data.Message == 'Unable to insert duplicate Feature Group') {
+                    $scope.showCreateDuplicateRoleAlert();
+                }
+                else {
+                    console.error(response.data.Message);
+                    console.error(response);
+                    if ($scope.ExceptionDialogControl != null) {
+                        $scope.ExceptionDialogControl.showDialog("Error in creating a role.");
+                    }
+                    else {
+                        bootbox.alert(response.data.Message);
+                    }
+                }
+            }
+            else {
+                $scope.selectedRole = {};
+                $scope.selectedRole.NAME = roleName;
+                $scope.selectedRole.FEATURE_GROUP_ID = response.data.Data.FEATURE_GROUP_ID;
+                $scope.rolesManagementRoles.push($scope.selectedRole);
+                $scope.setSQLFeatureStatuses(true);
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in creating a role.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.updateRoleName = function (roleName) {
+        if ($filter('lowercase')(roleName) == 'default') {
+            $scope.showCreateDuplicateRoleAlert();
+            return;
+        }
+        $http({
+            url: '/PortalUserAccounts/UpdateRoleName',
+            method: "PUT",
+            data: {
+                FEATURE_GROUP_ID: $scope.selectedRole.FEATURE_GROUP_ID,
+                NAME: roleName
+            }
+        }).then(function successCallback(response) {
+            if (!response.data.Status) {
+                if (response.data.Message == "Unable to update Feature Group - duplicate Feature Group names are not permitted.") {
+                    $scope.showCreateDuplicateRoleAlert();
+                }
+                else {
+                    console.error(response.data.Message);
+                    console.error(response);
+                    if ($scope.ExceptionDialogControl != null) {
+                        $scope.ExceptionDialogControl.showDialog("Error in updating the role name.");
+                    }
+                    else {
+                        bootbox.alert(response.data.Message);
+                    }
+                }
+            }
+            else {
+                $scope.selectedRole.NAME = roleName;
+                $scope.setSQLFeatureStatuses(false);
+                $scope.needToUpdateUsersList = true;
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in updating the role name.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.deleteRole = function () {
+        $http({
+            url: '/PortalUserAccounts/DeleteRole',
+            method: "PUT",
+            data: {
+                FEATURE_GROUP_ID: $scope.selectedRole.FEATURE_GROUP_ID
+            }
+        }).then(function successCallback(response) {
+            if (!response.data.Status) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in deleting a role.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            }
+            else {
+                var index = $scope.rolesManagementRoles.indexOf($scope.selectedRole);
+                $scope.rolesManagementRoles.splice(index, 1);
+
+                $scope.rolesManagementFeaturesStatus = null;
+                $scope.selectedRole = null;
+                $scope.setMainMode();
+                $scope.showFeatureList = false;
+                $scope.showDeletedRoleAlert();
+                $scope.needToUpdateUsersList = true;
+                $scope.roles_form.$setPristine();
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in deleting a role.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.setSQLFeatureStatuses = function (isCreate) {
+        //constructing the string of feature statuses to be passed into SQL
+        $scope.selectedRole.featureStatuses = "";
+
+        angular.forEach($scope.rolesManagementFeatures, function (category, value) {
+            angular.forEach(category.FEATURES, function (feature, value) {
+                if ($scope.selectedRole.featureStatuses != "") {
+                    $scope.selectedRole.featureStatuses += "|";
+                }
+                $scope.selectedRole.featureStatuses += feature.FEATURE_ID + ":" + feature.ENABLED_FLAG;
+            });
+        });
+
+        $http({
+            url: '/PortalUserAccounts/SetAllFeatures',
+            method: "PUT",
+            data: {
+                FEATURE_GROUP_ID: $scope.selectedRole.FEATURE_GROUP_ID,
+                FEATURE_STATUSES: $scope.selectedRole.featureStatuses
+            }
+        }).then(function successCallback(response) {
+            if (!response.data.Status) {
+                console.error(response.data.Message);
+                console.error(response);
+                if ($scope.ExceptionDialogControl != null) {
+                    $scope.ExceptionDialogControl.showDialog("Error in saving the feature status.");
+                }
+                else {
+                    bootbox.alert(response.data.Message);
+                }
+            }
+            else {
+                $scope.setMainMode();
+
+                if (isCreate) {
+                    $scope.showCreatedRoleAlert();
+                }
+                else {
+                    $scope.showUpdatedRoleAlert();
+                }
+                $scope.roles_form.$setPristine();
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in saving the feature status.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            }
+        });
+    }
+
+    $scope.roleOnChange = function () {
+        $scope.roles_form.$setPristine();
+        $scope.setMainMode();
+        $scope.closeAllRoleAlerts();
+        if ($scope.selectedRole != null) {
+            $scope.showFeatureList = true;
+            $scope.getFeaturesStatus($scope.selectedRole.FEATURE_GROUP_ID, $scope.selectedRole.IS_PARENT);
+        }
+        else {
+            $scope.showFeatureList = false;
+        }
+    }
+
+    $scope.closeRoleCreatedAlert = function () {
+        $scope.showRoleCreatedMsg = false;
+    }
+
+    $scope.closeRoleUpdatedAlert = function () {
+        $scope.showRoleUpdatedMsg = false;
+    }
+
+    $scope.closeRoleDeletedAlert = function () {
+        $scope.showRoleDeletedMsg = false;
+    }
+
+    $scope.closeCreateDuplicateRoleAlert = function () {
+        $scope.showCreateDuplicateRoleMsg = false;
+    }
+
+    $scope.$watch('roles_form.$pristine', function (n, o) {
+        if (n != o && !n && !$scope.isRoleMgmtEdit) {
+            if ($scope.selectedRole != null) {
+                $scope.editRoleName($scope.selectedRole.NAME);
+            }
+        }
+    });
+
+    //end Roles management
+
+    $scope.showPageDataLog = function () {
+        console.log({
+            UserList: $scope.users,
+            RolesList: $scope.rolesManagementRoles,
+            FeatureList: $scope.rolesManagementFeatures
+        });
+    }
+}
+
+
+
+app.controller('ProviderSearchCtrl', ProviderSearchCtrl);
+ProviderSearchCtrl.$inject = ['$scope', '$http', 'wbxProviderSearch', '$log'];
+
+function ProviderSearchCtrl($scope, $http, wbxProviderSearch, $log) {
+
+    $scope.results = null;
+    $scope.providerDetails = null;
+    $scope.accessDetails = null;
+    $scope.total = 0;
+    $scope.publicSearch = false;
+    $scope.customSearch = false;
+
+    var lastName = "";
+    var location = "";
+    var locCity = "";
+    var searchNear = "";
+    var ProductId = null;
+    var SpecialtyId = "-1";
+    var LocationLanguage = null;
+    var HandicapFlag = null;
+    var SpecialNeedsFlag = null;
+    var PcpEligible = null;
+    var SortId = null;
+
+    $scope.locationServices = false;
+    var location = {};
+
+    $scope.getLocation = function () {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(generatePosition, locationError);
+            $scope.locationServices = true;
+        } else {
+            $scope.locationServices = false;
+            $log.debug("Geolocation is not supported by this browser.");
+        }
+    }
+    function generatePosition(position) {
+        var result = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            position: position.coords
+        };
+        location = result;
+        
+    }
+
+    function locationError(error) {
+        $scope.locationServices = false;
+
+        switch (error.code) {
+            case error.PERMISSION_DENIED:
+                
+                break;
+            case error.POSITION_UNAVAILABLE:
+                
+                break;
+            case error.TIMEOUT:
+                
+                break;
+            case error.UNKNOWN_ERROR:
+                
+                break;
+        }
+    }
+
+    
+
+    // Search options for the SP
+    $scope.filter = {
+        nearAddress: "",
+        nearCity: "",
+        nearState: "",
+        nearZip: "",
+        productId: null,
+        providerLastName: "",
+        locationName: "",
+        city: "",
+        specialtyId: -1,
+        locationLanguage: null,
+        handicapFlag: false,
+        specialNeedsFlag: false,
+        pcpEligible: false,
+        sortId: 1
+    };
+
+    $scope.GetEnrolleeDetails = function () {
+        $scope.publicSearch = false;
+
+        // Make the search call
+        $http({
+            url: '/ProviderSearch/GetEnrolleeDetails',
+            method: 'GET',
+            params: {
+            }
+        }).success(function (data) {
+
+            if (data.length == 0) {
+                $scope.providerDetails = null;
+                bootbox.alert("Could not retrieve enrollee details.");
+            }
+            else {
+                $scope.filter.nearAddress = data[0].ADDRESS1;
+                $scope.filter.nearCity = data[0].CITY;
+                $scope.filter.nearState = data[0].STATE;
+                $scope.filter.nearZip = data[0].ZIP;
+            }
+
+        });
+
+
+    };
+
+    $scope.Search = function () {
+        console.log("Search");
+        // check the params being sent to be in the correct format 
+        searchNear = "";
+
+        if ($scope.filter.nearAddress.length != 0) {
+            searchNear += $scope.filter.nearAddress;
+            searchNear += "  ";
+        }
+
+        if ($scope.filter.nearCity.length != 0) {
+            searchNear += "  ";
+            searchNear += $scope.filter.nearCity;
+        }
+
+        if ($scope.filter.nearState.length != 0) {
+            searchNear += "  ";
+            searchNear += $scope.filter.nearState;
+        }
+
+        if ($scope.filter.nearZip.length != 0) {
+            searchNear += " , ";
+            searchNear += $scope.filter.nearZip;
+        }
+
+        if (searchNear.length == 0)
+            searchNear = null;
+
+
+        if ($scope.filter.providerLastName.length == 0) {
+            lastName = null;
+        }
+        else
+            lastName = $scope.filter.providerLastName;
+
+        if ($scope.filter.locationName.length == 0) {
+            location = null;
+        }
+        else
+            location = $scope.filter.locationName;
+
+        if ($scope.filter.city.length == 0) {
+            locCity = null;
+        }
+        else
+            locCity = $scope.filter.city;
+
+
+        if ($scope.filter.nearZip.length == 0) {
+            if ($scope.filter.nearCity.length == 0 && $scope.filter.nearState.length == 0) {
+                bootbox.alert("You must specify a city and a state.");
+                return;
+            }
+        }
+
+        if ($scope.filter.nearCity.length == 0 || $scope.filter.nearState.length == 0) {
+            if ($scope.filter.nearZip.length == 0) {
+                bootbox.alert("You must specify a city and state or a zip.");
+                return;
+            }
+        }
+
+
+        //if (($scope.filter.nearCity.length  + $scope.filter.nearState.length + $scope.filter.nearZip.length) == 0) {
+        //    bootbox.alert("You must specify a city, state, or zip.");
+        //    return;
+        //}
+
+        SpecialtyId = $scope.filter.specialtyId;
+        LocationLanguage = $scope.filter.locationLanguage;
+        HandicapFlag = $scope.filter.handicapFlag;
+        SpecialNeedsFlag = $scope.filter.specialNeedsFlag;
+        PcpEligible = $scope.filter.pcpEligible;
+        SortId = $scope.filter.sortId;
+        $scope.total = 0;
+
+        if ($scope.$parent.selectPCPProductId != null)
+            ProductId = $scope.$parent.selectPCPProductId;
+
+        $scope.pagingOptions.pageSize = 10;
+        $scope.pagingOptions.currentPage = 1;
+
+        $scope.getPagedDataAsync($scope.pagingOptions.pageSize, $scope.pagingOptions.currentPage);
+    };
+
+    $scope.InitSearch = function (address, city, state, zip, PCP) {
+        $scope.filter.nearAddress = address;
+        $scope.filter.nearCity = city;
+        $scope.filter.nearState = state;
+        $scope.filter.nearZip = zip;
+        $scope.filter.pcpEligible = PCP;
+    }
+
+    $scope.InitPCPSearch = function (address, city, state, zip, PCP, groupId, planId) {
+        $scope.filter.nearAddress = address;
+        $scope.filter.nearCity = city;
+        $scope.filter.nearState = state;
+        $scope.filter.nearZip = zip;
+        $scope.filter.pcpEligible = PCP;
+        ProductId = planId;
+    }
+
+
+    $scope.QuickSearch = function (address, city, state, zip, bPublicSearch, bCustomSearch) {
+        $scope.publicSearch = bPublicSearch;
+        $scope.customSearch = parseBool(bCustomSearch);
+        $scope.results = null;
+
+        if (address.length != 0)
+            $scope.filter.nearAddress = address;
+
+        if (city.length != 0)
+            $scope.filter.nearCity = city;
+
+        if (state != -1)
+            $scope.filter.nearState = state;
+
+        if (zip.length != 0)
+            $scope.filter.nearZip = zip;
+
+        // check the params being sent to be in the correct format 
+        searchNear = "";
+
+
+        if ($scope.filter.nearAddress.length != 0) {
+            searchNear += $scope.filter.nearAddress;
+            searchNear += "  ";
+        }
+
+        if ($scope.filter.nearCity.length != 0) {
+            searchNear += "  ";
+            searchNear += $scope.filter.nearCity;
+        }
+
+        if ($scope.filter.nearState.length != 0) {
+            searchNear += "  ";
+            searchNear += $scope.filter.nearState;
+        }
+
+        if ($scope.filter.nearZip.length != 0) {
+            searchNear += " , ";
+            searchNear += $scope.filter.nearZip;
+        }
+
+        if (searchNear.length == 0)
+            searchNear = null;
+
+
+        if ($scope.filter.providerLastName.length == 0) {
+            lastName = null;
+        }
+        else
+            lastName = $scope.filter.providerLastName;
+
+        if ($scope.filter.locationName.length == 0) {
+            location = null;
+        }
+        else
+            location = $scope.filter.locationName;
+
+        if ($scope.filter.city.length == 0) {
+            locCity = null;
+        }
+        else
+            locCity = $scope.filter.city;
+
+        /* special case, AddMember page using embedded doesn't need a quick search at startup */
+        if ($scope.filter.nearZip == '0') {
+            $scope.filter.nearZip = '';
+            return;
+        }
+
+        if ($scope.filter.nearZip.length == 0) {
+            if ($scope.filter.nearCity.length == 0 && $scope.filter.nearState.length == 0) {
+                bootbox.alert("You must specify a city and a state.");
+                return;
+            }
+        }
+
+        if ($scope.filter.nearCity.length == 0 || $scope.filter.nearState.length == 0) {
+            if ($scope.filter.nearZip.length == 0) {
+                bootbox.alert("You must specify a city and state or a zip.");
+                return;
+            }
+        }
+
+        //if (($scope.filter.nearCity.length + $scope.filter.nearState.length + $scope.filter.nearZip.length) == 0) {
+        //    bootbox.alert("You must specify a city, state, or zip.");
+        //    return;
+        //}
+
+        SpecialtyId = $scope.filter.specialtyId;
+        LocationLanguage = $scope.filter.locationLanguage;
+        HandicapFlag = $scope.filter.handicapFlag;
+        SpecialNeedsFlag = $scope.filter.specialNeedsFlag;
+        PcpEligible = $scope.filter.pcpEligible;
+        SortId = $scope.filter.sortId;
+        $scope.total = 0;
+        $scope.pagingOptions.pageSize = 10;
+        $scope.pagingOptions.currentPage = 1;
+
+
+        $scope.getPagedDataAsync($scope.pagingOptions.pageSize, $scope.pagingOptions.currentPage);
+    };
+
+    $scope.refineSearch = function () {
+        $scope.results = null;
+    }
+
+    $scope.hasResults = function () {
+        if ($scope.results == null) {
+            return false;
+        }
+        return ($scope.results.length > 0);
+    };
+
+    $scope.hasAccessResults = function () {
+        if ($scope.accessDetails == null) {
+            return false;
+        }
+        return ($scope.accessDetails.length > 0);
+    };
+
+    $scope.showProviderInfo = function (excludeProviders, Providers) {
+
+        if (excludeProviders == true) {
+            return false;
+        }
+
+        if ((excludeProviders == false) && (Providers == true))
+            return true;
+        else
+            return false;
+    };
+
+    $scope.Reset = function () {
+        $scope.results = null;
+
+        $scope.filter.nearAddress = "";
+        $scope.filter.nearCity = "";
+        $scope.filter.nearState = "";
+        $scope.filter.nearZip = "";
+        $scope.filter.productId = null;
+        $scope.filter.providerLastName = "";
+        $scope.filter.locationName = "";
+        $scope.filter.city = "";
+        $scope.filter.specialtyId = "-1";
+        $scope.filter.locationLanguage = null;
+        $scope.filter.handicapFlag = false;
+        $scope.filter.specialNeedsFlag = false;
+        //$scope.filter.pcpEligible = false;        // this shouldn't be changed on reset
+        $scope.filter.sortId = 1;
+
+
+        var lastName = "";
+        var location = "";
+        var locCity = "";
+        var searchNear = "";
+        var ProductId = null;
+        var SpecialtyId = "-1";
+        var LocationLanguage = null;
+        var HandicapFlag = null;
+        var SpecialNeedsFlag = null;
+        var PcpEligible = null;
+        var SortId = null;
+
+
+    };
+
+    $scope.GetDetails = function (providerID, locationID) {
+
+        $http({
+            url: '/Public/Details',
+            method: 'GET',
+            params: {
+                ProviderID: providerID,
+                LocationID: locationID
+            }
+        }).success(function (data) {
+
+            if (data.length == 0) {
+                $scope.providerDetails = null;
+                bootbox.alert("Could not retrieve provider details.");
+            }
+            else {
+                $scope.providerDetails = data[0];
+
+                $http({
+                    url: '/Public/GetAccessRestrictions',
+                    method: 'GET',
+                    params: {
+                        LocationID: locationID
+                    }
+                }).success(function (data) {
+
+                    if (data.length == 0) {
+                        $scope.accessDetails = null;
+                    }
+                    else {
+                        $scope.accessDetails = data;
+                    }
+                    $('#details-modal').modal('show');
+
+                }).error(function (data) {
+                    $.unblockUI();
+                    bootbox.alert(data);
+                });
+
+
+
+                $('#details-modal').modal('show');
+            }
+
+        }).error(function (data) {
+            $.unblockUI();
+            bootbox.alert(data);
+        });
+
+    };
+
+    /* PCP selection was made, broadcast the change, AddMember's ng model needs the selection */
+    $scope.SetPCP = function (providerID, locationID, lastname, firstname) {
+
+        var msg = {
+            Message: "PCP Selected by User",
+            MessageType: "PCPSelection",
+            ProviderID: providerID,
+            LocationID: locationID,
+            LastName: lastname,
+            FirstName: firstname
+        }
+
+        wbxProviderSearch.prepForBroadcast(msg);
+
+    };
+
+
+
+
+    /* paging */
+
+    $scope.orderBy = function (col) {
+        $scope.pagingOptions.orderBy = col;
+        $scope.getPagedDataAsync($scope.pagingOptions.pageSize, $scope.pagingOptions.currentPage);
+
+    };
+
+    $scope.pagingOptions = {
+        pageSizes: [10, 50, 100],
+        pageSize: 10,
+        totalServerItems: 0,
+        currentPage: 1,
+        orderBy: null
+    };
+
+    $scope.totalPages = function () {
+        return Math.ceil($scope.total / $scope.pagingOptions.pageSize);
+    }
+
+
+    $scope.getPagedDataAsync = function (pageSize, page) {
+
+        if ($scope.publicSearch == true) {
+            setTimeout(function () {
+                var data;
+                $.blockUI();
+
+                $http({
+                    url: '/Public/PreloginSearch',
+                    method: 'GET',
+                    params: {
+                        address: searchNear,
+                        productId: ProductId,
+                        providerLastName: lastName,
+                        locationName: location,
+                        city: locCity,
+                        specialtyId: SpecialtyId,
+                        locationLanguage: LocationLanguage,
+                        handicapFlag: HandicapFlag,
+                        specialNeedsFlag: SpecialNeedsFlag,
+                        pcpEligible: PcpEligible,
+                        sortId: SortId,
+                        customSearch: $scope.customSearch,
+                        page: $scope.pagingOptions.currentPage,
+                        pageSize: $scope.pagingOptions.pageSize,
+                        total: $scope.total
+                    }
+                }).success(function (largeLoad) {
+                    $.unblockUI();
+                    if (largeLoad.error) {
+                        bootbox.alert(largeLoad.message);
+                    }
+                    else {
+                        if (largeLoad.total == 0) {
+                            bootbox.alert("No providers found based on the criteria selected.");
+                        }
+                        else {
+
+                            if (largeLoad.error) {
+                                bootbox.alert(largeLoad.message);
+                            }
+                            else {
+                                $scope.total = largeLoad.total;
+                                $scope.results = largeLoad.data;
+
+                                if (!$scope.$$phase)
+                                    $scope.$apply();
+                            }
+
+                        }
+                    }
+                }).error(function (data) {
+                    $.unblockUI();
+                    bootbox.alert(data);
+                });
+
+            }, 100);
+
+
+        }
+        else {
+
+            if ($scope.$parent.PCPRequired && $scope.$parent.data.BenefitPlanId != null)
+                ProductId = $scope.$parent.data.BenefitPlanId;
+
+            setTimeout(function () {
+                var data;
+                $.blockUI();
+
+                $http({
+                    url: '/ProviderSearch/Search',
+                    method: 'GET',
+                    params: {
+                        address: searchNear,
+                        productId: ProductId,
+                        providerLastName: lastName,
+                        locationName: location,
+                        city: locCity,
+                        specialtyId: SpecialtyId,
+                        locationLanguage: LocationLanguage,
+                        handicapFlag: HandicapFlag,
+                        specialNeedsFlag: SpecialNeedsFlag,
+                        pcpEligible: PcpEligible,
+                        sortId: SortId,
+                        customSearch: $scope.customSearch,
+                        page: $scope.pagingOptions.currentPage,
+                        pageSize: $scope.pagingOptions.pageSize,
+                        total: $scope.total
+                    }
+                }).success(function (largeLoad) {
+                    $.unblockUI();
+                    if (largeLoad.total == 0) {
+                        bootbox.alert("No providers found based on the criteria selected.");
+                    }
+                    else {
+
+                        if (largeLoad.error) {
+                            bootbox.alert(largeLoad.message);
+                        }
+                        else {
+                            $scope.total = largeLoad.total;
+                            $scope.results = largeLoad.data;
+
+                            if (!$scope.$$phase)
+                                $scope.$apply();
+                        }
+
+                    }
+                }).error(function (data) {
+                    $.unblockUI();
+                    bootbox.alert(data);
+                });
+
+            }, 100);
+        }
+    };
+
+    $scope.first = function () {
+
+        $scope.pagingOptions.currentPage = 1;
+    }
+
+    $scope.last = function () {
+
+        $scope.pagingOptions.currentPage = $scope.totalPages();
+    }
+
+    $scope.next = function () {
+        
+        if ($scope.pagingOptions.currentPage < $scope.totalPages()) {
+            $scope.pagingOptions.currentPage++;
+        }
+    }
+
+    $scope.previous = function () {
+        
+        if ($scope.pagingOptions.currentPage > 1) {
+            $scope.pagingOptions.currentPage--;
+        }
+    }
+
+
+    $scope.$watch('pagingOptions', function (newVal, oldVal) {
+
+        if (newVal !== oldVal && newVal.currentPage !== oldVal.currentPage) {
+            $scope.getPagedDataAsync($scope.pagingOptions.pageSize, $scope.pagingOptions.currentPage);
+        }
+    }, true);
+
+
+
+    /* end paging */
+    $scope.splitCsv = function (str) {
+        if (str == '' || str == null) {
+            return '';
+        }
+        return str.split(',').join(', ');
+    };
+}
+
+
+function parseBool(value) {
+    return (typeof value === "undefined") ?
+           false :
+           // trim using jQuery.trim()'s source 
+           value.replace(/^\s+|\s+$/g, "").toLowerCase() === "true";
+}
+app.controller('RegistrationCtrl', RegistrationCtrl);
+RegistrationCtrl.$inject = ['$scope', '$http', '$compile', '$window', '$timeout'];
+
+function RegistrationCtrl($scope, $http, $compile, $window, $timeout) {
+    $scope.init = function (module, minDob) {
+        $scope.clearForm();
+
+        if (module == 'eMWP') {
+            $scope.registrationEdit.LOGIN_ENTITY_TYPE_ID = 5;
+            $scope.MinDOB = moment(moment().subtract(minDob, 'year').startOf('day')).format("MM/DD/YYYY");
+        }
+        else if (module == 'eCAP')
+        {
+            $scope.registrationEdit.LOGIN_ENTITY_TYPE_ID = 3;
+        }
+    }
+
+    $scope.clearForm = function () {
+        $scope.registrationEdit = {};
+        $scope.alerts = {};
+        $scope.alertMessages = {};
+        $scope.alerts.showRegistrationProcessingMsg = false;
+        $scope.alerts.showRegistrationError = false;
+        $scope.showConfirmation = false;
+    }
+
+    //PWP
+    $scope.showEntityRegistration = function (entityId) {
+        $scope.getFormFields(entityId);
+    }
+
+    $scope.getFormFields = function (entityId) {
+        $scope.registrationEdit.LOGIN_ENTITY_TYPE_ID = entityId;
+
+        $scope.ShowPayeeFormLoading = false;
+        $scope.ShowLocationFormLoading = false;
+        $scope.ShowFacilityFormLoading = false;
+        $scope.ShowProviderFormLoading = false;
+        if (entityId == 4) {
+            $scope.ShowPayeeFormLoading = true;
+        }
+        else if (entityId == 1) {
+            $scope.ShowLocationFormLoading = true;
+        }
+        else if (entityId == 2) {
+            $scope.ShowFacilityFormLoading = true;
+        }
+        else if (entityId == 3) {
+            $scope.ShowProviderFormLoading = true;
+        }
+
+        $http({
+            method: 'GET',
+            url: '/Registration/GetFormFields',
+            params: {
+                LOGIN_ENTITY_TYPE_ID: $scope.registrationEdit.LOGIN_ENTITY_TYPE_ID
+            }
+        }).then(function successCallback(response) {
+            $scope.entityInfoList = response.data;
+            //Make sure if the field type is int, limit the max character to 10
+            angular.forEach($scope.entityInfoList, function (entityInfo) {
+                if (entityInfo.DATA_TYPE == 'int') {
+                    entityInfo.CHARACTER_MAXIMUM_LENGTH = 10;
+                }
+            });
+
+            $scope.ShowPayeeFormLoading = false;
+            $scope.ShowLocationFormLoading = false;
+            $scope.ShowFacilityFormLoading = false;
+            $scope.ShowProviderFormLoading = false;
+
+            $('#RegistrationDialog').modal({
+                backdrop: 'static'
+            })
+            $('#RegistrationDialog').modal('show');
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting form fields.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            };
+        });
+    }
+
+    $scope.cancelEntityRegistration = function () {
+        $('#RegistrationDialog').modal('hide');
+
+        //If it's not a valid email, it has to be explicitly cleared because 
+        // angular doesn't bind until the value is valid.
+        //In this case, if it's not a valid email, angular doesn't bind it and 
+        // it's not automatically cleared.
+        if ($scope.registration_form.EmailTextBox.$invalid) {
+            $('#EmailTextBox')[0].value = "";
+        }
+
+        $scope.registration_form.$setPristine();
+        $scope.clearForm();
+    }
+
+    $scope.registerPWP = function (registrationInfo) {
+        if ($scope.registration_form.$invalid) {
+            return false;
+        }
+
+        $scope.alerts.showRegistrationProcessingMsg = true;
+        $http({
+            url: "/Registration/RegisterPWP",
+            method: "PUT",
+            data: {
+                LOGIN_ENTITY_TYPE_ID: registrationInfo.LOGIN_ENTITY_TYPE_ID,
+                PROVIDER_ID: registrationInfo.PROVIDER_ID,
+                FACILITY_ID: registrationInfo.FACILITY_ID,
+                LOCATION_ID: registrationInfo.LOCATION_ID,
+                PAYEE_ID: registrationInfo.PAYEE_ID,
+                NAME: registrationInfo.NAME,
+                CITY: registrationInfo.CITY,
+                STATE: registrationInfo.STATE,
+                ZIP: registrationInfo.ZIP,
+                FIRST_NAME: registrationInfo.FIRST_NAME,
+                MIDDLE_NAME: registrationInfo.MIDDLE_NAME,
+                LAST_NAME: registrationInfo.LAST_NAME,
+                EMAIL: registrationInfo.EMAIL,
+                USER_NAME: registrationInfo.USER_NAME,
+                PASSWORD: registrationInfo.PASSWORD,
+                PIN: registrationInfo.PIN
+            }
+        }).then(function successCallback(response) {
+            $scope.alerts.showRegistrationProcessingMsg = false;
+            if (response.data.Status == false) {
+                $scope.alerts.showRegistrationError = true;
+                $scope.alertMessages.registrationErrorMsg = response.data.Message;
+            }
+            else {
+                //Close the dialog.
+                $scope.cancelEntityRegistration();
+                $scope.showConfirmation = true;
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in registering PWP.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            };
+
+            $scope.alerts.showRegistrationProcessingMsg = false;
+        });
+    }
+
+    //End PWP
+
+
+    //MWP
+    $scope.registerMWP = function (registrationInfo) {
+        if ($scope.registration_form.$invalid) {
+            $timeout(function () {
+                $('html, body').animate({
+                    scrollTop: $('.alert-danger:visible:first').offset().top - 60
+                }, 250);
+            });
+            return false;
+        }
+
+        $scope.alerts.showRegistrationError = false;
+        $scope.alerts.showRegistrationProcessingMsg = true;
+        $http({
+            url: "/Registration/RegisterMWP",
+            method: "PUT",
+            data: {
+                LOGIN_ENTITY_TYPE_ID: registrationInfo.LOGIN_ENTITY_TYPE_ID,
+                SUBSCRIBER_ID: registrationInfo.SUBSCRIBER_ID,
+                SSN: registrationInfo.Last4SSN,
+                FIRST_NAME: registrationInfo.FIRST_NAME,
+                MIDDLE_NAME: registrationInfo.MIDDLE_NAME,
+                LAST_NAME: registrationInfo.LAST_NAME,
+                DOB: registrationInfo.DOB,
+                EMAIL: registrationInfo.EMAIL,
+                USER_NAME: registrationInfo.USER_NAME,
+                PASSWORD: registrationInfo.PASSWORD,
+                PIN: registrationInfo.PIN
+            }
+        }).then(function successCallback(response) {
+            $scope.alerts.showRegistrationProcessingMsg = false;
+            if (response.data.Status == false) {
+                $scope.alerts.showRegistrationError = true;
+                $scope.alertMessages.registrationErrorMsg = response.data.Message;
+
+                $timeout(function () {
+                    $('html, body').animate({
+                        scrollTop: $('.alert-danger:visible:first').offset().top - 60
+                    }, 250);
+                });
+            }
+            else {
+                $scope.showConfirmation = true;
+            }
+            $scope.registration_form.$setPristine();
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in registering MWP.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            };
+            $scope.alerts.showRegistrationProcessingMsg = false;
+        });
+    }
+
+    //End MWP
+
+
+    //CAP 
+    $scope.registerCAP = function (registrationInfo)
+    {
+        if ($scope.registration_form.$invalid)
+        {
+            $timeout(function ()
+            {
+                $('html, body').animate({
+                    scrollTop: $('.alert-danger:visible:first').offset().top - 60
+                }, 250);
+            });
+            return false;
+        }
+
+        $scope.alerts.showRegistrationError = false;
+        $scope.alerts.showRegistrationProcessingMsg = true;
+        $http({
+            url: "/Registration/RegisterCAP",
+            method: "PUT",
+            data: {
+                LOGIN_ENTITY_TYPE_ID: registrationInfo.LOGIN_ENTITY_TYPE_ID,
+                NPI: registrationInfo.NPI,
+                FIRST_NAME: registrationInfo.FIRST_NAME,
+                MIDDLE_NAME: registrationInfo.MIDDLE_NAME,
+                LAST_NAME: registrationInfo.LAST_NAME,
+                EMAIL: registrationInfo.EMAIL,
+                USER_NAME: registrationInfo.USER_NAME,
+                PASSWORD: registrationInfo.PASSWORD,
+                PIN: registrationInfo.PIN
+            }
+        }).then(function successCallback(response)
+        {
+            $scope.alerts.showRegistrationProcessingMsg = false;
+            if (response.data.Status == false)
+            {
+                $scope.alerts.showRegistrationError = true;
+                $scope.alertMessages.registrationErrorMsg = response.data.Message;
+
+                $timeout(function ()
+                {
+                    $('html, body').animate({
+                        scrollTop: $('.alert-danger:visible:first').offset().top - 60
+                    }, 250);
+                });
+            }
+            else
+            {
+                $scope.showConfirmation = true;
+            }
+            $scope.registration_form.$setPristine();
+        }, function errorCallback(response)
+        {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null)
+            {
+                $scope.ExceptionDialogControl.showDialog("Error registering provider for Credentialing Portal access.");
+            }
+            else
+            {
+                bootbox.alert(response.data.Message);
+            };
+            $scope.alerts.showRegistrationProcessingMsg = false;
+        });
+    }
+
+    //End CAP
+
+    $scope.gotoLandingPage = function () {
+        $http({
+            method: 'GET',
+            url: '/Account/LogOffJson'
+        }).then(function successCallback(response) {
+            if (response.data != null) {
+                $window.location.href = "/";
+            }
+        }, function errorCallback(response) {
+            console.error(response.data.Message);
+            console.error(response);
+            if ($scope.ExceptionDialogControl != null) {
+                $scope.ExceptionDialogControl.showDialog("Error in getting form fields.");
+            }
+            else {
+                bootbox.alert(response.data.Message);
+            };
+        });
+    }
+
+    $scope.$watch('registration_form.$pristine', function (n, o) {
+        if (n != o && !n) {
+            $scope.alerts.showRegistrationError = false;
+        }
+    });
+}
+
+
+
